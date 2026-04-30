@@ -9,7 +9,7 @@ Original file is located at
 ##1D CNN Attempt
 
 ###Data source: FTSE 100 index, 1999-2026.
-###Label: Whether the close price $y$ has increased after 90 days. (if $y(t+1) > y(t)$)
+###Label: Whether the close price $y$ has increased by the next day. (if $y(t+1) > y(t)$)
 
 Resources used:
 
@@ -49,7 +49,7 @@ plt.rcParams['mathtext.fontset'] = 'dejavuserif'
 def predict_90(train, test, predictors, model, engine = 'sklearn'):
 
 
-    model.fit(train[predictors], train["Target"],  shuffle=True, epochs=20, batch_size=30)
+    model.fit(train[predictors], train["Target"],  shuffle=True, batch_size=30)
     if engine == 'keras':
         probs = model.predict(test[predictors])[:,0]
     else: 
@@ -111,10 +111,12 @@ def plot_class_balance(ticker_data):
 def make_additional_features(ticker_data):
  # ticker_data['EMA'] = exponential_ma(ticker_data.Close, window_size = ticker_data.shape[0])
   #ticker_data['Close'] =  ticker_data['EMA']
-  ticker_data['EMA_Close'] = ticker_data['Close'].ewm(alpha = .3, adjust = False).mean()
-  ticker_data['EMA_Open'] = ticker_data['Open'].ewm(alpha = .3, adjust = False).mean()
-  ticker_data['EMA_High'] = ticker_data['High'].ewm(alpha = .3, adjust = False).mean()
-  ticker_data['EMA_Low'] = ticker_data['Low'].ewm(alpha = .3, adjust = False).mean()
+  '''
+  ticker_data['EMA_Close'] = ticker_data['Close'].ewm(alpha = .6, adjust = False).mean()
+  ticker_data['EMA_Open'] = ticker_data['Open'].ewm(alpha = .6, adjust = False).mean()
+  ticker_data['EMA_High'] = ticker_data['High'].ewm(alpha = .6, adjust = False).mean()
+  ticker_data['EMA_Low'] = ticker_data['Low'].ewm(alpha = .6, adjust = False).mean()
+  '''
   ticker_data['SMA'] = ticker_data.Close.rolling(10, min_periods = 1).mean() # simple moving avg
   ticker_data['Momentum'] = ticker_data.Close - ticker_data.Close.shift(-10) # momentum
   ticker_data['Momentum'] = ticker_data['Momentum'].fillna(0) # replace the NAN values from the momentum
@@ -123,13 +125,14 @@ def make_additional_features(ticker_data):
   ticker_data['High_Low_Diff'] = ticker_data.High / ticker_data.Low
   ticker_data['open_close_ratio'] = ticker_data.Open / ticker_data.Close
   #RSI - from Jakub's model
-
+  '''
   ticker_data = RSI(ticker_data, k_window=10)
   ticker_data = Williams(ticker_data, k_window=10)
   ticker_data = MACD(ticker_data)
   ticker_data = OBV(ticker_data)
   ticker_data['Williams %R'].fillna(0, inplace=True)
   ticker_data['RSI'].fillna(0, inplace=True)
+  
   ticker_data["return_5"] = ticker_data["EMA_Close"].pct_change(5)
   ticker_data["return_14"] = ticker_data["EMA_Close"].pct_change(14)
   ticker_data["return_90"] = ticker_data["EMA_Close"].pct_change(90)
@@ -137,6 +140,7 @@ def make_additional_features(ticker_data):
   ticker_data["momentum_7"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(7)
   ticker_data["momentum_30"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(30)
   ticker_data["momentum_90"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(90)
+  '''
   return ticker_data
 
 def flatten_list(_list):
@@ -358,7 +362,7 @@ msft_data = make_target(msft_data)
 #class balance plot
 plot_class_balance(msft_data)
 # add technical indicators
-#msft_data = make_additional_features(msft_data)
+msft_data = make_additional_features(msft_data)
 #normalisation
 msft_data = normalise_data(msft_data)
 """Split the FTSE data into training data and testing data:"""
@@ -399,11 +403,7 @@ early = EarlyStopping(patience=15, restore_best_weights=True)
 #model.fit(x_train, y_train, shuffle=False, validation_data=(x_test, y_test), batch_size=batch_size, epochs=50, verbose=1, callbacks = [early])
 msft_data['Target'] = msft_data['target']
 
-
-
-#predictions, oob_scores = backtest_90(msft_data, model, x_test.columns.tolist(), engine = 'keras')
-#print(predictions)
-#### HPO using backtesting ####
+#### HPO  ####
 
 param_grid = {
     "dropout_rate":     [0.0,0.1,0.2],
@@ -474,7 +474,7 @@ fig.savefig('training.png')
 '''
 ############## FEATURE IMPORTANCE ###################
 
-'''
+
 perm_impt = PermutationImportance(model, random_state=1, scoring='r2').fit(x_test, y_test)
 
 eli5.show_weights(perm_impt, feature_names = x_train.columns.tolist())
@@ -489,7 +489,7 @@ ax.set_ylabel('$R^2$ Feature Importance')
 ax.set_title('Feature Importance')
 
 ax.set_xticklabels(ax.get_xticklabels(), rotation=60)
-'''
+
 """Evaluate the model predictions using the test data, and plot two figures:
 * ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
 * Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
