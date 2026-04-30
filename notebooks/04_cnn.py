@@ -22,9 +22,8 @@ import numpy as np
 import os
 import scipy.stats as stats
 import keras_tuner as tuner
-#import eli5
 import shap
-#from eli5.sklearn import PermutationImportance
+
 import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
@@ -38,8 +37,6 @@ from keras.losses import BinaryFocalCrossentropy
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 from keras.layers import Conv1D, Dense, Flatten, Dropout, ReLU, MaxPooling1D, BatchNormalization, LeakyReLU
-#self-imports
-from project_testing.mlstock import *
 
 test_trading_strategy=False
 plt.rcParams['font.family'] = 'serif'
