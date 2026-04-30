@@ -22,8 +22,9 @@ import numpy as np
 import os
 import scipy.stats as stats
 import keras_tuner as tuner
-import eli5
-from eli5.sklearn import PermutationImportance
+#import eli5
+import shap
+#from eli5.sklearn import PermutationImportance
 import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
@@ -341,11 +342,6 @@ msft_data = read_data('MSFT')
 sp500_data = read_data('^GSPC', start =  "2000-01-01")
 
 
-fig, ax = plt.subplots(1,1, figsize = (7,3))
-ax.plot(msft_data.index, msft_data['Close'], c= 'k', alpha = 1)
-ax.set_ylabel('Stock Price, USD')
-ax.set_xlabel('Date')
-
 
 
 """Preprocessing:
@@ -360,7 +356,7 @@ ax.set_xlabel('Date')
 #the target should be whether the price has increased over 10 days
 msft_data = make_target(msft_data)
 #class balance plot
-plot_class_balance(msft_data)
+#plot_class_balance(msft_data)
 # add technical indicators
 msft_data = make_additional_features(msft_data)
 #normalisation
@@ -474,21 +470,15 @@ fig.savefig('training.png')
 '''
 ############## FEATURE IMPORTANCE ###################
 
-
-perm_impt = PermutationImportance(model, random_state=1, scoring='r2').fit(x_test, y_test)
-
-eli5.show_weights(perm_impt, feature_names = x_train.columns.tolist())
-
-print(perm_impt.feature_importances_)
-print(perm_impt.feature_importances_std_)
-sorted_indices = np.argsort(perm_impt.feature_importances_)
-sorted_features = [x_data.columns.tolist()[i] for i in np.argsort(perm_impt.feature_importances_)]
-fig, ax = plt.subplots(1,1, layout='constrained', figsize = (10,4))
-ax.errorbar(sorted_features[::-1],perm_impt.feature_importances_[sorted_indices][::-1], yerr = perm_impt.feature_importances_std_[sorted_indices][::-1], color = '#B3351D', fmt='.', capsize=5)
-ax.set_ylabel('$R^2$ Feature Importance')
-ax.set_title('Feature Importance')
-
-ax.set_xticklabels(ax.get_xticklabels(), rotation=60)
+plt.close()
+expl = shap.PermutationExplainer(model.predict, x_train.iloc[-20:-1])
+#test_shap = expl.shap_values(x_test.iloc[0:10])
+shaps = expl.shap_values(x_test.iloc[0:20])
+print(shaps[...,1])
+#plt.barh(x_test.columns.tolist(), shaps[...,1])
+shap.summary_plot(shaps, plot_type='bar', feature_names = x_test.columns.tolist(), show=False)
+plt.savefig('1d_cnn_feat_imp.png', dpi=600)
+#plt.show()
 
 """Evaluate the model predictions using the test data, and plot two figures:
 * ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
