@@ -9,7 +9,7 @@ Original file is located at
 ##1D CNN Attempt
 
 ###Data source: FTSE 100 index, 1999-2026.
-###Label: Whether the close price $y$ has increased after 90 days. (if $y(t+1) > y(t)$)
+###Label: Whether the close price $y$ has increased by the next day. (if $y(t+1) > y(t)$)
 
 Resources used:
 
@@ -22,8 +22,8 @@ import numpy as np
 import os
 import scipy.stats as stats
 import keras_tuner as tuner
-import eli5
-from eli5.sklearn import PermutationImportance
+import shap
+
 import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
@@ -37,8 +37,6 @@ from keras.losses import BinaryFocalCrossentropy
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 from keras.layers import Conv1D, Dense, Flatten, Dropout, ReLU, MaxPooling1D, BatchNormalization, LeakyReLU
-#self-imports
-from project_testing.mlstock import *
 
 test_trading_strategy=False
 plt.rcParams['font.family'] = 'serif'
@@ -49,7 +47,7 @@ plt.rcParams['mathtext.fontset'] = 'dejavuserif'
 def predict_90(train, test, predictors, model, engine = 'sklearn'):
 
 
-    model.fit(train[predictors], train["Target"],  shuffle=True, epochs=20, batch_size=30)
+    model.fit(train[predictors], train["Target"],  shuffle=True, batch_size=30)
     if engine == 'keras':
         probs = model.predict(test[predictors])[:,0]
     else: 
@@ -111,10 +109,12 @@ def plot_class_balance(ticker_data):
 def make_additional_features(ticker_data):
  # ticker_data['EMA'] = exponential_ma(ticker_data.Close, window_size = ticker_data.shape[0])
   #ticker_data['Close'] =  ticker_data['EMA']
-  ticker_data['EMA_Close'] = ticker_data['Close'].ewm(alpha = .3, adjust = False).mean()
-  ticker_data['EMA_Open'] = ticker_data['Open'].ewm(alpha = .3, adjust = False).mean()
-  ticker_data['EMA_High'] = ticker_data['High'].ewm(alpha = .3, adjust = False).mean()
-  ticker_data['EMA_Low'] = ticker_data['Low'].ewm(alpha = .3, adjust = False).mean()
+  '''
+  ticker_data['EMA_Close'] = ticker_data['Close'].ewm(alpha = .6, adjust = False).mean()
+  ticker_data['EMA_Open'] = ticker_data['Open'].ewm(alpha = .6, adjust = False).mean()
+  ticker_data['EMA_High'] = ticker_data['High'].ewm(alpha = .6, adjust = False).mean()
+  ticker_data['EMA_Low'] = ticker_data['Low'].ewm(alpha = .6, adjust = False).mean()
+  '''
   ticker_data['SMA'] = ticker_data.Close.rolling(10, min_periods = 1).mean() # simple moving avg
   ticker_data['Momentum'] = ticker_data.Close - ticker_data.Close.shift(-10) # momentum
   ticker_data['Momentum'] = ticker_data['Momentum'].fillna(0) # replace the NAN values from the momentum
@@ -123,13 +123,14 @@ def make_additional_features(ticker_data):
   ticker_data['High_Low_Diff'] = ticker_data.High / ticker_data.Low
   ticker_data['open_close_ratio'] = ticker_data.Open / ticker_data.Close
   #RSI - from Jakub's model
-
+  '''
   ticker_data = RSI(ticker_data, k_window=10)
   ticker_data = Williams(ticker_data, k_window=10)
   ticker_data = MACD(ticker_data)
   ticker_data = OBV(ticker_data)
   ticker_data['Williams %R'].fillna(0, inplace=True)
   ticker_data['RSI'].fillna(0, inplace=True)
+  
   ticker_data["return_5"] = ticker_data["EMA_Close"].pct_change(5)
   ticker_data["return_14"] = ticker_data["EMA_Close"].pct_change(14)
   ticker_data["return_90"] = ticker_data["EMA_Close"].pct_change(90)
@@ -137,6 +138,7 @@ def make_additional_features(ticker_data):
   ticker_data["momentum_7"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(7)
   ticker_data["momentum_30"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(30)
   ticker_data["momentum_90"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(90)
+  '''
   return ticker_data
 
 def flatten_list(_list):
@@ -189,82 +191,21 @@ def make_1d_cnn_with_hpo(hp) :
 
   return model
 
-def tune_and_predict(train, test, predictors, param_grid, thresholds, val_frac=0.2):
-    # Split the training window into an inner train + inner validation
-    n = len(train)
-    inner_train = train.iloc[:int(n * (1 - val_frac))]
-    inner_val    = train.iloc[int(n * (1 - val_frac)):]
+def plot_trading_results(results, baseline, index_fund, model_name):
 
-    best_score = -1
-    best_params = None
-    best_threshold = None
-    found_any_valid_combination = False
+        plt.figure(figsize=(10, 6))
+        plt.plot(results.index, results["Profit"], 'r--', label = 'MSFT Portfolio Profit')
+        plt.plot(baseline.index, baseline["Profit"], 'b--',label = 'Baseline Strategy Profit')
+        plt.plot(index_fund.index, index_fund["Profit"], 'k-', label = 'Index Fund Profit')
+        plt.legend()
+        plt.title("Trading Strategy Performance")
+        plt.xlabel("Date")
+        plt.ylabel("USD ($) Value")
+        plt.grid()
+        plt.savefig(f'{model_name} trading_strategy.png', dpi=600)
 
-    keys = list(param_grid.keys())
-    all_param_combos = list(product(*param_grid.values()))
-
-    for combo in all_param_combos:
-        params = dict(zip(keys, combo))
-
-        model = make_1d_cnn(n_features=n_features, optimiser = 'adam', **params)
-        #print(n)
-        model.fit(inner_train[predictors], inner_train["target"])
-        #print(model.predict(inner_val[predictors]))
-        probs = model.predict(inner_val[predictors])[:, 0]
-
-        for thr in thresholds:
-            preds = (probs >= thr).astype(int)
-            if preds.sum() < 20:   # skip degenerate models
-                continue
-            score = precision_score(inner_val["target"], preds, zero_division=0)
-
-            if not found_any_valid_combination or score > best_score:
-                best_score = score
-                best_params = params
-                best_threshold = thr
-                found_any_valid_combination = True
-
-    if not found_any_valid_combination:
-        best_params = dict(zip(keys, all_param_combos[0]))
-        best_threshold = thresholds[0]
-
-    # Retrain on the FULL training window with the winning params
-    final_model = make_1d_cnn(n_features=n_features, optimiser = 'adam', **best_params)
-    final_model.fit(train[predictors], train["target"])
-    #feature_imp = final_model.feature_importances_
-
-    probs = final_model.predict(test[predictors])[:, 0]
-    preds = (probs >= best_threshold).astype(int)
-    preds = pd.Series(preds, index=test.index, name="Predictions")
-    combined = pd.concat([test["target"], preds], axis=1)
-    return combined, best_params, best_threshold
-
-
-def backtest_with_tuning(data, predictors, param_grid, thresholds,
-                         start=3000, train_advance_step=63, predict_window_size=1):
-    all_predictions = []
-    chosen_params = []
-    all_feature_importances = []
-    print(data.shape[0])
-    current_train_end_idx = start
-    while current_train_end_idx < data.shape[0]:
-        train = data.iloc[0:current_train_end_idx].copy()
-        test  = data.iloc[current_train_end_idx:(current_train_end_idx + predict_window_size)].copy()
-
-        if test.empty:
-            break
-
-        predictions, params, thr = tune_and_predict(
-            train, test, predictors, param_grid, thresholds
-        )
-        all_predictions.append(predictions)
-        chosen_params.append({"start_date": test.index[0], "threshold": thr, **params})
-       # all_feature_importances.append(feature_importances)
-        print(f"chunk starting {test.index[0]}: {params}, thr={thr}")
-
-        current_train_end_idx += train_advance_step
-
-    return pd.concat(all_predictions), pd.DataFrame(chosen_params)#, all_feature_importances
+        #print(f"Total Trades: {trade_count}")
+        #print(f"Win Rate: {wins / trade_count}")
 
 def present_model_results(y_test, y_pred):
   thresh=0.5
@@ -337,11 +278,6 @@ msft_data = read_data('MSFT')
 sp500_data = read_data('^GSPC', start =  "2000-01-01")
 
 
-fig, ax = plt.subplots(1,1, figsize = (7,3))
-ax.plot(msft_data.index, msft_data['Close'], c= 'k', alpha = 1)
-ax.set_ylabel('Stock Price, USD')
-ax.set_xlabel('Date')
-
 
 
 """Preprocessing:
@@ -356,9 +292,9 @@ ax.set_xlabel('Date')
 #the target should be whether the price has increased over 10 days
 msft_data = make_target(msft_data)
 #class balance plot
-plot_class_balance(msft_data)
+#plot_class_balance(msft_data)
 # add technical indicators
-#msft_data = make_additional_features(msft_data)
+msft_data = make_additional_features(msft_data)
 #normalisation
 msft_data = normalise_data(msft_data)
 """Split the FTSE data into training data and testing data:"""
@@ -399,11 +335,7 @@ early = EarlyStopping(patience=15, restore_best_weights=True)
 #model.fit(x_train, y_train, shuffle=False, validation_data=(x_test, y_test), batch_size=batch_size, epochs=50, verbose=1, callbacks = [early])
 msft_data['Target'] = msft_data['target']
 
-
-
-#predictions, oob_scores = backtest_90(msft_data, model, x_test.columns.tolist(), engine = 'keras')
-#print(predictions)
-#### HPO using backtesting ####
+#### HPO  ####
 
 param_grid = {
     "dropout_rate":     [0.0,0.1,0.2],
@@ -474,22 +406,16 @@ fig.savefig('training.png')
 '''
 ############## FEATURE IMPORTANCE ###################
 
-'''
-perm_impt = PermutationImportance(model, random_state=1, scoring='r2').fit(x_test, y_test)
+plt.close()
+expl = shap.PermutationExplainer(model.predict, x_train.iloc[-20:-1])
+#test_shap = expl.shap_values(x_test.iloc[0:10])
+shaps = expl.shap_values(x_test.iloc[0:20])
+print(shaps[...,1])
+#plt.barh(x_test.columns.tolist(), shaps[...,1])
+shap.summary_plot(shaps, plot_type='bar', feature_names = x_test.columns.tolist(), show=False)
+plt.savefig('1d_cnn_feat_imp.png', dpi=600)
+#plt.show()
 
-eli5.show_weights(perm_impt, feature_names = x_train.columns.tolist())
-
-print(perm_impt.feature_importances_)
-print(perm_impt.feature_importances_std_)
-sorted_indices = np.argsort(perm_impt.feature_importances_)
-sorted_features = [x_data.columns.tolist()[i] for i in np.argsort(perm_impt.feature_importances_)]
-fig, ax = plt.subplots(1,1, layout='constrained', figsize = (10,4))
-ax.errorbar(sorted_features[::-1],perm_impt.feature_importances_[sorted_indices][::-1], yerr = perm_impt.feature_importances_std_[sorted_indices][::-1], color = '#B3351D', fmt='.', capsize=5)
-ax.set_ylabel('$R^2$ Feature Importance')
-ax.set_title('Feature Importance')
-
-ax.set_xticklabels(ax.get_xticklabels(), rotation=60)
-'''
 """Evaluate the model predictions using the test data, and plot two figures:
 * ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
 * Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
