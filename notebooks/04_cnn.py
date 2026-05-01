@@ -41,6 +41,7 @@ from pathlib import Path
 import sys
 
 
+
 test_trading_strategy=False
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'dejavuserif'
@@ -235,11 +236,7 @@ def normalise_data(ticker_data):
     return ticker_data
 
 
-if __name__ == "__main__":
-
-  """Use the MSFT index from 1 Jan 1999 to 1 Mar 2026:"""
-  msft_data = read_data('MSFT')
-  sp500_data = read_data('^GSPC', start =  "2000-01-01")
+def run_1d_cnn(msft_data, sp500_data):
   # preprocessing
   #define X and Y
   #the target should be whether the price has increased over 10 days
@@ -249,7 +246,6 @@ if __name__ == "__main__":
   #normalisation
   msft_data = normalise_data(msft_data) #minmax scaling
   x_data = msft_data.drop('target', axis=1) # without target
-
   ## TRAIN - TEST - SPLIT FOR HYPERPARAMETER TUNING ONLY ##
 
   val_split_fraction = 0.2
@@ -329,9 +325,13 @@ if __name__ == "__main__":
   predictions = pd.read_csv(f'predictions.csv')
 
   _, recall, precision = present_model_results(predictions['Target'], predictions['Probabilities'])
+  return predictions, recall, precision
 
-  print(f"Recall = {recall}")
-  print(f"Precision = {precision}")
 
+if __name__ == "__main__":
+    """Use the MSFT index from 1 Jan 1999 to 1 Mar 2026:"""
+    msft_data = read_data('MSFT')
+    sp500_data = read_data('^GSPC', start =  "2000-01-01")
+    predictions, _, _ = run_1d_cnn(msft_data, sp500_data)
 
 
