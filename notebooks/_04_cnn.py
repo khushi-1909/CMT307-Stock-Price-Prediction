@@ -142,10 +142,9 @@ def make_1d_cnn(n_features,optimiser='adam', dropout_rate=0.2,  kernel_size = 3,
   model.compile(loss=BinaryFocalCrossentropy(from_logits=False), optimizer='adam', 
                 metrics = ['accuracy', AUC(name='auc')])
   #model.summary()
-
   return model
 
-def make_1d_cnn_with_hpo(hp, n_features) :
+def make_1d_cnn_with_hpo(hp, n_features):
   model  = Sequential()
   model.add(Conv1D(filters=32, kernel_size=3, padding ='same',input_shape = (n_features,1)))
   model.add(BatchNormalization())
@@ -154,7 +153,7 @@ def make_1d_cnn_with_hpo(hp, n_features) :
   model.add(Conv1D(filters=64, kernel_size=3, padding ='same'))
   model.add(BatchNormalization())
   model.add(ReLU())
-  model.add(Dropout(rate=hp.Float('rate', 0, 0.2))))
+  model.add(Dropout(rate=hp.Float('rate', 0, 0.2)))
   model.add(Conv1D(filters=128, kernel_size=3, padding ='same'))
   model.add(MaxPooling1D(pool_size=2))
   model.add(Flatten())
