@@ -178,22 +178,6 @@ def make_1d_cnn_with_hpo(hp) :
 
   return model
 
-def plot_trading_results(results, baseline, index_fund, model_name):
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(results.index, results["Profit"], 'r--', label = 'MSFT Portfolio Profit')
-        plt.plot(baseline.index, baseline["Profit"], 'b--',label = 'Baseline Strategy Profit')
-        plt.plot(index_fund.index, index_fund["Profit"], 'k-', label = 'Index Fund Profit')
-        plt.legend()
-        plt.title("Trading Strategy Performance")
-        plt.xlabel("Date")
-        plt.ylabel("USD ($) Value")
-        plt.grid()
-        plt.savefig(f'{model_name} trading_strategy.png', dpi=600)
-
-        #print(f"Total Trades: {trade_count}")
-        #print(f"Win Rate: {wins / trade_count}")
-
 def present_model_results(y_test, y_pred):
   thresh=0.5
   y_pred_class = np.where(y_pred > thresh, 1,0)
