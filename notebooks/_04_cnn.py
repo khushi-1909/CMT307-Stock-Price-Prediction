@@ -60,7 +60,6 @@ if str(SRC_PATH) not in sys.path:
 from backtesting import predict_90, backtest_90
 from trading import simulate_trading, baseline, plot_trading_results
 
-
 ### FUNCTIONS ####
 
 
