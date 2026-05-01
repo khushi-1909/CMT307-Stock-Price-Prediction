@@ -84,15 +84,6 @@ def exponential_ma(close, window_size, smoothing_alpha=0.3):
   for i in range(1,window_size):
     smooth[i] = (smoothing_alpha * close.iloc[i]) + ((1-smoothing_alpha) * smooth[i-1])
   return smooth
-def plot_class_balance(ticker_data):
-  fig, axs  = plt.subplots(1,1, figsize = (3,3), layout = 'constrained')
-  colours = ['purple', 'y']
-  axs.bar(x = [0,1], height=ticker_data['target'].value_counts()[::-1]/ticker_data.shape[0], color = colours)
-  axs.set_xticks([0,1])
-  axs.set_xticklabels(['Sell,\n$c_{t+90} < c_t$', 'Buy,\n$c_{t+90} > c_t$'])
-  axs.set_ylabel('Fraction')
-  axs.set_title('Class balance')
-  fig.savefig('class_balance.png', dpi=600)
 def make_additional_features(ticker_data):
  # ticker_data['EMA'] = exponential_ma(ticker_data.Close, window_size = ticker_data.shape[0])
   #ticker_data['Close'] =  ticker_data['EMA']
