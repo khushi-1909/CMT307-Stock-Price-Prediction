@@ -21,9 +21,6 @@ def plot_trading_results(results, baseline, index_fund, model_name):
         plt.grid()
         plt.savefig(f'{model_name} trading_strategy.png', dpi=600)
 
-        print(f"Total Trades: {trade_count}")
-        print(f"Win Rate: {wins / trade_count}")
-
 def baseline(df, horizon=90,
                             initial_capital=10000,
                             trade_size=1000):
