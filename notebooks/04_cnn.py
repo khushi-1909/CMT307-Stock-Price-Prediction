@@ -37,10 +37,28 @@ from keras.losses import BinaryFocalCrossentropy
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 from keras.layers import Conv1D, Dense, Flatten, Dropout, ReLU, MaxPooling1D, BatchNormalization, LeakyReLU
+from pathlib import Path
+import sys
+
 
 test_trading_strategy=False
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'dejavuserif'
+
+# IMPORT SOURCE FILES #
+
+# to import from the src/ folder when running the notebook
+PROJECT_ROOT = Path.cwd()
+if PROJECT_ROOT.name == "notebooks":
+    PROJECT_ROOT = PROJECT_ROOT.parent
+
+SRC_PATH = PROJECT_ROOT / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.append(str(SRC_PATH))
+
+from backtesting import predict_90, backtest_90
+from trading import simulate_trading, baseline, plot_trading_results
+
 
 ### FUNCTIONS ####
 
