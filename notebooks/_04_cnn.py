@@ -145,7 +145,7 @@ def make_1d_cnn(n_features,optimiser='adam', dropout_rate=0.2,  kernel_size = 3,
 
   return model
 
-def make_1d_cnn_with_hpo(hp) :
+def make_1d_cnn_with_hpo(hp, n_features) :
   model  = Sequential()
   model.add(Conv1D(filters=32, kernel_size=3, padding ='same',input_shape = (n_features,1)))
   model.add(BatchNormalization())
@@ -154,7 +154,7 @@ def make_1d_cnn_with_hpo(hp) :
   model.add(Conv1D(filters=64, kernel_size=3, padding ='same'))
   model.add(BatchNormalization())
   model.add(ReLU())
-  model.add(Dropout(rate=dropout_rate))
+  model.add(Dropout(rate=hp.Float('rate', 0, 0.2))))
   model.add(Conv1D(filters=128, kernel_size=3, padding ='same'))
   model.add(MaxPooling1D(pool_size=2))
   model.add(Flatten())
@@ -291,7 +291,7 @@ def run_1d_cnn(msft_data, sp500_data):
     print(f"Best dropout: {best_hp.get('rate')}")
     print(f"Best learning rate: {best_hp.get('learning_rate')}")
     rs.results_summary()
-    model = make_1d_cnn_with_hpo(best_hp)
+    model = make_1d_cnn_with_hpo(best_hp, n_features)
     predictions, oob_scores = backtest_90(msft_data, model, x_test.columns.tolist(), engine = 'keras')
     predictions.to_csv('predictions.csv')
 
