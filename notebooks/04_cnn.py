@@ -343,21 +343,10 @@ param_grid = {
     "padding":  ['same']
 }
 thresholds = [0.54,0.55, .56, .57]
-
-   
-
-   
-
-
-
-
 n_features = x_data.shape[1]
 dropout_rate = 0
 #this architecture follows Ranjan et al. 2025
-
 if not os.path.exists(f'predictions.csv'):
-
-
   #model = make_1d_cnn_with_hpo(best_hp)
   rs = tuner.RandomSearch(make_1d_cnn_with_hpo, objective = 'val_accuracy', max_trials = 20)
   rs.search(x_train, y_train, epochs = 20, validation_data = (x_val, y_val))
