@@ -37,12 +37,11 @@ from keras.losses import BinaryFocalCrossentropy
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 from keras.layers import Conv1D, Dense, Flatten, Dropout, ReLU, MaxPooling1D, BatchNormalization, LeakyReLU
+
 from pathlib import Path
 import sys
-
-
-
 test_trading_strategy=False
+do_hpo=False
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'dejavuserif'
 
@@ -66,7 +65,7 @@ from trading import simulate_trading, baseline, plot_trading_results
 def make_target(ticker_data):
   ticker_data = ticker_data[['High', 'Low', 'Open', 'Close', 'Volume']]
   ticker_data['close_90'] = ticker_data['Close'].shift(-90)
-  ticker_data['target'] = (ticker_data['close_90'] > ticker_data['Close']).astype(int)
+  ticker_data['Target'] = (ticker_data['close_90'] > ticker_data['Close']).astype(int)
   #ticker_data['Close'] = np.log(ticker_data['Close'])
   return ticker_data
 
@@ -84,6 +83,15 @@ def exponential_ma(close, window_size, smoothing_alpha=0.3):
   for i in range(1,window_size):
     smooth[i] = (smoothing_alpha * close.iloc[i]) + ((1-smoothing_alpha) * smooth[i-1])
   return smooth
+def plot_class_balance(ticker_data):
+  fig, axs  = plt.subplots(1,1, figsize = (3,3), layout = 'constrained')
+  colours = ['purple', 'y']
+  axs.bar(x = [0,1], height=ticker_data['target'].value_counts()[::-1]/ticker_data.shape[0], color = colours)
+  axs.set_xticks([0,1])
+  axs.set_xticklabels(['Sell,\n$c_{t+90} < c_t$', 'Buy,\n$c_{t+90} > c_t$'])
+  axs.set_ylabel('Fraction')
+  axs.set_title('Class balance')
+  fig.savefig('class_balance.png', dpi=600)
 def make_additional_features(ticker_data):
  # ticker_data['EMA'] = exponential_ma(ticker_data.Close, window_size = ticker_data.shape[0])
   #ticker_data['Close'] =  ticker_data['EMA']
@@ -142,9 +150,10 @@ def make_1d_cnn(n_features,optimiser='adam', dropout_rate=0.2,  kernel_size = 3,
   model.compile(loss=BinaryFocalCrossentropy(from_logits=False), optimizer='adam', 
                 metrics = ['accuracy', AUC(name='auc')])
   #model.summary()
+
   return model
 
-def make_1d_cnn_with_hpo(hp, n_features):
+def make_1d_cnn_with_hpo(hp) :
   model  = Sequential()
   model.add(Conv1D(filters=32, kernel_size=3, padding ='same',input_shape = (n_features,1)))
   model.add(BatchNormalization())
@@ -162,11 +171,27 @@ def make_1d_cnn_with_hpo(hp, n_features):
   model.add(Dense(units=1, activation = 'sigmoid'))
 
   model.compile(loss='binary_crossentropy',
-                 optimizer=Adam(hp.Float('learning_rate', 1e-4, 1e-2, sampling='log')),
+                 optimizer=Adam(hp.Float('learning_rate', 1e-4, 1e-3, sampling='log')),
                    metrics = ['accuracy', AUC(name='auc')])
   model.summary()
 
   return model
+
+def plot_trading_results(results, baseline, index_fund, model_name):
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(results.index, results["Profit"], 'r--', label = 'MSFT Portfolio Profit')
+        plt.plot(baseline.index, baseline["Profit"], 'b--',label = 'Baseline Strategy Profit')
+        plt.plot(index_fund.index, index_fund["Profit"], 'k-', label = 'Index Fund Profit')
+        plt.legend()
+        plt.title("Trading Strategy Performance")
+        plt.xlabel("Date")
+        plt.ylabel("USD ($) Value")
+        plt.grid()
+        plt.savefig(f'{model_name} trading_strategy.png', dpi=600)
+
+        #print(f"Total Trades: {trade_count}")
+        #print(f"Win Rate: {wins / trade_count}")
 
 def present_model_results(y_test, y_pred):
   thresh=0.5
@@ -218,9 +243,9 @@ def present_model_results(y_test, y_pred):
   #x_test.set_index(msft_data.index)
   return y_pred, recall, precision
 
-def read_data(ticker, start = "1990-01-01" ):
+def read_data(ticker, start = "1990-01-01" , end = "2025-12-31"):
    data = yf.Ticker(ticker)
-   data = data.history(start =  start,end = "2025-12-31")
+   data = data.history(start =  start,end =end)
    data.to_csv(f'{ticker}.csv')
    data.index = pd.to_datetime(data.index)
    return data
@@ -233,23 +258,58 @@ def normalise_data(ticker_data):
     ticker_data.index = date_index
     return ticker_data
 
+"""Use the MSFT index from 1 Jan 1999 to 1 Mar 2026:"""
 
-def run_1d_cnn(msft_data, sp500_data):
-  # preprocessing
-  #define X and Y
-  #the target should be whether the price has increased over 10 days
-  msft_data = make_target(msft_data)
+msft_data = read_data('MSFT', start = "1990-01-01")
+sp500_data = read_data('^GSPC', start =  "2000-01-01")
+
+
+
+
+"""Preprocessing:
+- Generate new features:
+  - Open/close ratio (```open_close_ratio```)
+  - Close price tomorrow (```close_tomorrow```). Resultant NaNs are replaced with the final value of ```Close```.
+  - The target for the model (```target```). A binary variable; ```1``` if ```close_tomorrow``` > ```close``` else ```0```. (i.e, best to buy now (```1```) if price will increase tomorow; best to sell now (```0```) if not)
+"""
+
+# preprocessing
+#define X and Y
+#the target should be whether the price has increased over 10 days
+
+msft_data = make_target(msft_data)
+#class balance plot
+#plot_class_balance(msft_data)
+# add technical indicators
+msft_data = make_additional_features(msft_data)
+#normalisation
+msft_data = normalise_data(msft_data)
+
+
+
+
+
+
+
+
+"""Split the FTSE data into training data and testing data:"""
+if do_hpo:
+  hpo_data = read_data('^FTSE')
+  hpo_data = make_target(hpo_data)
+  #class balance plot
+  #plot_class_balance(msft_data)
   # add technical indicators
-  msft_data = make_additional_features(msft_data)
+  hpo_data = make_additional_features(hpo_data)
   #normalisation
-  msft_data = normalise_data(msft_data) #minmax scaling
-  x_data = msft_data.drop('target', axis=1) # without target
-  ## TRAIN - TEST - SPLIT FOR HYPERPARAMETER TUNING ONLY ##
+  hpo_data = normalise_data(hpo_data)
 
+  hpo_x = hpo_data.drop('target', axis=1)
   val_split_fraction = 0.2
   test_split_fraction = 0.3 # use 70% of the data for training, 30% for testing
-  test_split_index = int(x_data.shape[0] * (1-test_split_fraction))
-  val_split_index = int(x_data.shape[0] * (1-val_split_fraction-test_split_fraction))
+  test_split_index = int(hpo_x.shape[0] * (1-test_split_fraction))
+  val_split_index = int(hpo_x.shape[0] * (1-val_split_fraction-test_split_fraction))
+  #np.random.seed(44) # maintain consistent shuffle of data
+
   #train the data on n=30 alternating days
   #validate using 10 days between each 30-day slice
 
@@ -258,78 +318,114 @@ def run_1d_cnn(msft_data, sp500_data):
   train_indices = flatten_list(train_indices)
   val_indices = flatten_list(val_indices)
 
-  x_val = x_data.iloc[val_split_index:test_split_index]
-  y_val = msft_data.iloc[val_split_index:test_split_index]['target']
-  x_test = x_data.iloc[test_split_index:]
-  y_test = msft_data.iloc[test_split_index:]['target']
-  x_train = x_data.iloc[:val_split_index]
-  y_train = msft_data.iloc[:val_split_index]['target']
-  n_features = x_data.shape[1]
+  hpo_val_x = hpo_x.iloc[val_split_index:test_split_index]
+  hpo_val_y = hpo_data.iloc[val_split_index:test_split_index]['target']
+  hpo_test_x = hpo_x.iloc[test_split_index:]
+  hpo_test_y = hpo_data.iloc[test_split_index:]['target']
+  hpo_train_x = hpo_x.iloc[:val_split_index]
+  hpo_train_y = hpo_data.iloc[:val_split_index]['target']
+
+
+  n_features = hpo_x.shape[1]
   dropout_rate = 0.01
-  ### INITIAL HYPERPARAMETER TUNING ###
+  #this architecture follows Ranjan et al. 2025
+
   model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
   batch_size = 10
-  early = EarlyStopping(patience=15, restore_best_weights=True)
-  msft_data['Target'] = msft_data['target']
 
-  #### HPO RANDOM SEARCH ###
-  param_grid = {
-      "dropout_rate":     [0.0,0.1,0.2],
-      "kernel_size":         [3,5,7],
-      "padding":  ['same']
-  }
+  early = EarlyStopping(patience=15, restore_best_weights=True)
+
+  #
+  #model.fit(x_train, y_train, shuffle=False, validation_data=(x_test, y_test), batch_size=batch_size, epochs=50, verbose=1, callbacks = [early])
+  
+
+  #### HPO  ####
   thresholds = [0.54,0.55, .56, .57]
-  n_features = x_data.shape[1]
+  n_features = hpo_x.shape[1]
   dropout_rate = 0
-  if not os.path.exists(f'predictions.csv'):
-    #model = make_1d_cnn_with_hpo(best_hp)
+  #this architecture follows Ranjan et al. 2025
+if not os.path.exists(f'predictions.csv'):
+  #model = make_1d_cnn_with_hpo(best_hp)
+
+  #HPO
+  if do_hpo:
     rs = tuner.RandomSearch(make_1d_cnn_with_hpo, objective = 'val_accuracy', max_trials = 20)
-    rs.search(x_train, y_train, epochs = 20, validation_data = (x_val, y_val))
+    rs.search(hpo_train_x, hpo_train_y, epochs = 20, validation_data = (hpo_val_x, hpo_val_y))
 
     best_hp = rs.get_best_hyperparameters(num_trials=1)[0]
     print(f"Best dropout: {best_hp.get('rate')}")
     print(f"Best learning rate: {best_hp.get('learning_rate')}")
     rs.results_summary()
-    model = make_1d_cnn_with_hpo(best_hp, n_features)
-    predictions, oob_scores = backtest_90(msft_data, model, x_test.columns.tolist(), engine = 'keras')
-    predictions.to_csv('predictions.csv')
+    model = make_1d_cnn_with_hpo(best_hp)
+  else:  
+    # msft_data['Target'] = msft_data['target']
+     print(msft_data)
+     n_features = msft_data.shape[1]-1
+     dropout_rate = 0.2
+     model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
+  
+  predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras')
+  predictions.to_csv('predictions.csv')
+  #predictions = pd.DataFrame(model.predict(x_test)[:,0], index = x_test.index, columns = ['Predictions'])
+  # predictions['Predictions'] = predictions
+  # print(predictions)
+  results, trade_count, wins, losses, total_roi, roi_per_trade, return_vol = simulate_trading(msft_data, predictions)
+  baseline_results, baseline_trade_count, baseline_wins, baseline_losses, baseline_total_roi, baseline_roi_per_trade =  baseline(msft_data)
 
-    ### TRADING ALGORITHM ###
+  #sp500 results
+  # S&P 500 returns over the same period
 
-    results, trade_count, wins, losses, total_roi, roi_per_trade, return_vol = simulate_trading(msft_data, predictions)
-    baseline_results, baseline_trade_count, baseline_wins, baseline_losses, baseline_total_roi, baseline_roi_per_trade =  baseline(msft_data)
-    # S&P 500 returns over the same period
-    initial_capital = 10000
-    sp500_data["Returns"] = sp500_data["Close"].pct_change()
-    sp500_data["Portfolio_Value"] = (1 + sp500_data["Returns"]).cumprod() * initial_capital
-    sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
-    plot_trading_results(results, baseline_results, sp500_data, model_name='CNN')
-    print(trade_count)
-    results.to_csv('CNN_trading_strategy_results.csv')
+  initial_capital = 10000
+  sp500_data["Returns"] = sp500_data["Close"].pct_change()
+  sp500_data["Portfolio_Value"] = (1 + sp500_data["Returns"]).cumprod() * initial_capital
+  sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
+  plot_trading_results(results, baseline_results, sp500_data, model_name='CNN')
+  print(trade_count)
+  results.to_csv('CNN_trading_strategy_results.csv')
 
-  ############## FEATURE IMPORTANCE ###################
+    ############# FEATURE IMPORTANCE ###################
 
   plt.close()
-  expl = shap.PermutationExplainer(model.predict, x_train.iloc[-20:-1])
-  shaps = expl.shap_values(x_test.iloc[0:20])
-  shap.summary_plot(shaps, plot_type='bar', feature_names = x_test.columns.tolist(), show=False)
+  expl = shap.PermutationExplainer(model.predict, msft_data.drop('target').iloc[-40:-20])
+  #test_shap = expl.shap_values(x_test.iloc[0:10])
+  shaps = expl.shap_values(msft_data.drop('target').iloc[-20:-1])
+  print(shaps[...,1])
+  #plt.barh(x_test.columns.tolist(), shaps[...,1])
+  shap.summary_plot(shaps, plot_type='bar', feature_names = hpo_test_x.columns.tolist(), show=False)
   plt.savefig('1d_cnn_feat_imp.png', dpi=600)
-
-  """Evaluate the model predictions using the test data, and plot two figures:
-  * ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
-  * Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
-  """
-
-  predictions = pd.read_csv(f'predictions.csv')
-
-  _, recall, precision = present_model_results(predictions['Target'], predictions['Probabilities'])
-  return predictions, recall, precision
+  #plt.show()
 
 
-if __name__ == "__main__":
-    """Use the MSFT index from 1 Jan 1999 to 1 Mar 2026:"""
-    msft_data = read_data('MSFT')
-    sp500_data = read_data('^GSPC', start =  "2000-01-01")
-    predictions, _, _ = run_1d_cnn(msft_data, sp500_data)
+'''
+fig, ax = plt.subplots(1,1, figsize = (4,4), layout = 'constrained')
+ax2 = ax.twinx()
+ax.plot(model.history.history['accuracy'], c = 'k', label = 'Training')
+#ax2.plot(model.history.history['val_accuracy'], c = 'r', label = 'AUC')
+ax2.spines['right'].set_color('red')
+ax2.tick_params(axis='y', colors='red')
+ax2.yaxis.label.set_color('red')
+ax2.set_ylabel('Validation AUC')
+print(model.history.history)
+#ax.plot(model.history.history['acc'], c = 'k', ls = 'dashed', label = 'Validation', alpha = 0.5)
+ax.set_ylabel('Accuracy')
+ax.set_xlabel('Epoch')
+ax.set_title('Training plot')
+ax.legend()
+fig.savefig('training.png')
+'''
+#
+
+"""Evaluate the model predictions using the test data, and plot two figures:
+* ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
+* Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
+"""
+
+predictions = pd.read_csv(f'predictions.csv')
+
+_, recall, precision = present_model_results(predictions['Target'], predictions['Probabilities'])
+
+print(f"Recall = {recall}")
+print(f"Precision = {precision}")
+
 
 
