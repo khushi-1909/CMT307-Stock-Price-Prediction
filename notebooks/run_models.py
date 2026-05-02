@@ -16,7 +16,35 @@ from _04_cnn import run_cnn
 from _05_FCN_ExtraTrees_XGBoost import run_hybrid
 import yfinance as yf
 import sys
+import matplotlib.pyplot as plt
 from pathlib import Path
+
+def get_baseline_and_index_results(data, sp500_data):
+    baseline_results, baseline_trade_count, baseline_wins, baseline_losses, baseline_total_roi, baseline_roi_per_trade =  baseline(data)
+    baseline = [baseline_results, baseline_trade_count, baseline_wins, baseline_losses, baseline_total_roi, baseline_roi_per_trade ]
+    #sp500 results
+    # S&P 500 returns over the same period
+
+    initial_capital = 10000
+    sp500_data["Returns"] = sp500_data["Close"].pct_change()
+    sp500_data["Portfolio_Value"] = (1 + sp500_data["Returns"]).cumprod() * initial_capital
+    sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
+    return baseline, sp500_data
+
+def plot_trading_results(results, baseline, index_fund, model_name):
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(results.index, results["Profit"], 'r--', label = 'MSFT Portfolio Profit')
+        plt.plot(baseline.index, baseline["Profit"], 'b--',label = 'Baseline Strategy Profit')
+        plt.plot(index_fund.index, index_fund["Profit"], 'k-', label = 'Index Fund Profit')
+        plt.legend()
+        plt.title("Trading Strategy Performance")
+        plt.xlabel("Date")
+        plt.ylabel("USD ($) Value")
+        plt.grid()
+        plt.savefig(f'{model_name} trading_strategy.png', dpi=600)
+
+
 # to import from the src/ folder when running the notebook
 PROJECT_ROOT = Path.cwd()
 if PROJECT_ROOT.name == "notebooks":
@@ -27,10 +55,11 @@ if str(SRC_PATH) not in sys.path:
     sys.path.append(str(SRC_PATH))
 
 from show_results import present_model_results
-from trading import plot_trading_results
+from trading import plot_trading_results, baseline
 
 
 data = yf.Ticker('MSFT')
+baseline = trading.
 y_dataframes_set = []
 trading_results_set = []
 for model_function in [run_random_forest, run_cnn, run_hybrid]:
@@ -45,5 +74,6 @@ for model_function in [run_random_forest, run_cnn, run_hybrid]:
 present_model_results(y_dataframes_set)
 
 # generate the trading results figure
+
 
 plot_trading_results(y_dataframes_set)
