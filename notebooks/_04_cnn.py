@@ -297,52 +297,31 @@ if do_hpo:
   hpo_data = read_data('^FTSE')
   hpo_data = make_target(hpo_data)
   #class balance plot
-  #plot_class_balance(msft_data)
   # add technical indicators
   hpo_data = make_additional_features(hpo_data)
   #normalisation
   hpo_data = normalise_data(hpo_data)
-
   hpo_x = hpo_data.drop('target', axis=1)
   val_split_fraction = 0.2
   test_split_fraction = 0.3 # use 70% of the data for training, 30% for testing
   test_split_index = int(hpo_x.shape[0] * (1-test_split_fraction))
   val_split_index = int(hpo_x.shape[0] * (1-val_split_fraction-test_split_fraction))
-  #np.random.seed(44) # maintain consistent shuffle of data
-
-  #train the data on n=30 alternating days
-  #validate using 10 days between each 30-day slice
-
   train_indices = []
   val_indices = []
   train_indices = flatten_list(train_indices)
   val_indices = flatten_list(val_indices)
-
   hpo_val_x = hpo_x.iloc[val_split_index:test_split_index]
   hpo_val_y = hpo_data.iloc[val_split_index:test_split_index]['target']
   hpo_test_x = hpo_x.iloc[test_split_index:]
   hpo_test_y = hpo_data.iloc[test_split_index:]['target']
   hpo_train_x = hpo_x.iloc[:val_split_index]
   hpo_train_y = hpo_data.iloc[:val_split_index]['target']
-
-
   n_features = hpo_x.shape[1]
-  dropout_rate = 0.01
   #this architecture follows Ranjan et al. 2025
-
-  model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
-  batch_size = 10
-
   early = EarlyStopping(patience=15, restore_best_weights=True)
-
-  #
-  #model.fit(x_train, y_train, shuffle=False, validation_data=(x_test, y_test), batch_size=batch_size, epochs=50, verbose=1, callbacks = [early])
-  
-
   #### HPO  ####
   thresholds = [0.54,0.55, .56, .57]
   n_features = hpo_x.shape[1]
-  dropout_rate = 0
   #this architecture follows Ranjan et al. 2025
 if not os.path.exists(f'predictions.csv'):
   #model = make_1d_cnn_with_hpo(best_hp)
@@ -351,7 +330,6 @@ if not os.path.exists(f'predictions.csv'):
   if do_hpo:
     rs = tuner.RandomSearch(make_1d_cnn_with_hpo, objective = 'val_accuracy', max_trials = 20)
     rs.search(hpo_train_x, hpo_train_y, epochs = 20, validation_data = (hpo_val_x, hpo_val_y))
-
     best_hp = rs.get_best_hyperparameters(num_trials=1)[0]
     print(f"Best dropout: {best_hp.get('rate')}")
     print(f"Best learning rate: {best_hp.get('learning_rate')}")
