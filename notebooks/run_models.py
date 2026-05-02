@@ -11,13 +11,15 @@ results. The trading results are also plotted using the function in src/trading.
 
 
 
-from _03_random_forest import run_random_forest
+#from _03_random_forest import run_random_forest
 from _04_cnn import run_cnn, read_data
-from _05_FCN_ExtraTrees_XGBoost import run_hybrid
+#from _05_FCN_ExtraTrees_XGBoost import run_hybrid
 import yfinance as yf
 import sys
 import matplotlib.pyplot as plt
 from pathlib import Path
+
+#import from elsewhere in the project
 PROJECT_ROOT = Path.cwd()
 if PROJECT_ROOT.name == "notebooks":
     PROJECT_ROOT = PROJECT_ROOT.parent
@@ -27,9 +29,11 @@ if str(SRC_PATH) not in sys.path:
     sys.path.append(str(SRC_PATH))
 
 from show_results import present_model_results
-from trading import plot_trading_results, baseline
+from trading import baseline
 
 sp500_data = read_data('^GSPC', start =  "2000-01-01")
+
+#get baseline and S&P500 profit yields
 
 def get_baseline_and_index_results(ticker, sp500_data):
     data = read_data(ticker)
@@ -43,6 +47,8 @@ def get_baseline_and_index_results(ticker, sp500_data):
     sp500_data["Portfolio_Value"] = (1 + sp500_data["Returns"]).cumprod() * initial_capital
     sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
     return baseline_outcome, sp500_data
+
+## plot all the profit results from each model, compared to a (single) baseline and index fund (sp500)
 
 def plot_trading_results(model_results, baseline, index_fund):
         model_colours = ['#2ea647', '#472ea6', '#a6472e']
@@ -66,8 +72,9 @@ def plot_trading_results(model_results, baseline, index_fund):
 data = yf.Ticker('MSFT')
 y_dataframes_set = []
 trading_results_set = []
+# get the baseline profit and sp500 profit to compare
 baseline_outcome, sp500 = get_baseline_and_index_results('MSFT', sp500_data)
-for model_function in [run_random_forest, run_cnn, run_hybrid]:
+for model_function in [run_cnn]:
     # y_dataframe is the predictions dataframe from the backtesting.
     y_dataframe, trading_results = model_function(data)
     y_dataframes_set.append(y_dataframe)
