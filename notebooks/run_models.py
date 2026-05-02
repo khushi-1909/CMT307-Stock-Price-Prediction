@@ -32,10 +32,12 @@ from trading import plot_trading_results
 
 data = yf.Ticker('MSFT')
 y_dataframes_set = []
+trading_results_set = []
 for model_function in [run_random_forest, run_cnn, run_hybrid]:
     # y_dataframe is the predictions dataframe from the backtesting.
-    y_dataframe = model_function(data)
+    y_dataframe, trading_results = model_function(data)
     y_dataframes_set.append(y_dataframe)
+    trading_results_set.append(trading_results)
 
 
 #generate the results figure (3 sets of results)    
