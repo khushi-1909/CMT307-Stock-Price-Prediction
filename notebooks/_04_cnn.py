@@ -260,150 +260,131 @@ def normalise_data(ticker_data):
 
 """Use the MSFT index from 1 Jan 1999 to 1 Mar 2026:"""
 
-msft_data = read_data('MSFT', start = "1990-01-01")
-sp500_data = read_data('^GSPC', start =  "2000-01-01")
 
 
 
 
-"""Preprocessing:
-- Generate new features:
-  - Open/close ratio (```open_close_ratio```)
-  - Close price tomorrow (```close_tomorrow```). Resultant NaNs are replaced with the final value of ```Close```.
-  - The target for the model (```target```). A binary variable; ```1``` if ```close_tomorrow``` > ```close``` else ```0```. (i.e, best to buy now (```1```) if price will increase tomorow; best to sell now (```0```) if not)
-"""
+def run_cnn(ticker):
+  msft_data = read_data(ticker, start = "1990-01-01")
+  sp500_data = read_data('^GSPC', start =  "2000-01-01")
+  """Preprocessing:
+  - Generate new features:
+    - Open/close ratio (```open_close_ratio```)
+    - Close price tomorrow (```close_tomorrow```). Resultant NaNs are replaced with the final value of ```Close```.
+    - The target for the model (```target```). A binary variable; ```1``` if ```close_tomorrow``` > ```close``` else ```0```. (i.e, best to buy now (```1```) if price will increase tomorow; best to sell now (```0```) if not)
+  """
 
-# preprocessing
-#define X and Y
-#the target should be whether the price has increased over 10 days
+  # preprocessing
+  #define X and Y
+  #the target should be whether the price has increased over 10 days
 
-msft_data = make_target(msft_data)
-#class balance plot
-#plot_class_balance(msft_data)
-# add technical indicators
-msft_data = make_additional_features(msft_data)
-#normalisation
-msft_data = normalise_data(msft_data)
-
-
-
-
-
-
-
-
-"""Split the FTSE data into training data and testing data:"""
-if do_hpo:
-  hpo_data = read_data('^FTSE')
-  hpo_data = make_target(hpo_data)
+  msft_data = make_target(msft_data)
   #class balance plot
+  #plot_class_balance(msft_data)
   # add technical indicators
-  hpo_data = make_additional_features(hpo_data)
+  msft_data = make_additional_features(msft_data)
   #normalisation
-  hpo_data = normalise_data(hpo_data)
-  hpo_x = hpo_data.drop('target', axis=1)
-  val_split_fraction = 0.2
-  test_split_fraction = 0.3 # use 70% of the data for training, 30% for testing
-  test_split_index = int(hpo_x.shape[0] * (1-test_split_fraction))
-  val_split_index = int(hpo_x.shape[0] * (1-val_split_fraction-test_split_fraction))
-  train_indices = []
-  val_indices = []
-  train_indices = flatten_list(train_indices)
-  val_indices = flatten_list(val_indices)
-  hpo_val_x = hpo_x.iloc[val_split_index:test_split_index]
-  hpo_val_y = hpo_data.iloc[val_split_index:test_split_index]['target']
-  hpo_test_x = hpo_x.iloc[test_split_index:]
-  hpo_test_y = hpo_data.iloc[test_split_index:]['target']
-  hpo_train_x = hpo_x.iloc[:val_split_index]
-  hpo_train_y = hpo_data.iloc[:val_split_index]['target']
-  n_features = hpo_x.shape[1]
-  #this architecture follows Ranjan et al. 2025
-  early = EarlyStopping(patience=15, restore_best_weights=True)
-  #### HPO  ####
-  thresholds = [0.54,0.55, .56, .57]
-  n_features = hpo_x.shape[1]
-  #this architecture follows Ranjan et al. 2025
-if not os.path.exists(f'predictions.csv'):
-  #model = make_1d_cnn_with_hpo(best_hp)
+  msft_data = normalise_data(msft_data)
 
-  #HPO
+
+
+
+
+
+
+
+  """Split the FTSE data into training data and testing data:"""
   if do_hpo:
-    rs = tuner.RandomSearch(make_1d_cnn_with_hpo, objective = 'val_accuracy', max_trials = 20)
-    rs.search(hpo_train_x, hpo_train_y, epochs = 20, validation_data = (hpo_val_x, hpo_val_y))
-    best_hp = rs.get_best_hyperparameters(num_trials=1)[0]
-    print(f"Best dropout: {best_hp.get('rate')}")
-    print(f"Best learning rate: {best_hp.get('learning_rate')}")
-    rs.results_summary()
-    model = make_1d_cnn_with_hpo(best_hp)
-  else:  
-    # msft_data['Target'] = msft_data['target']
-     print(msft_data)
-     n_features = msft_data.shape[1]-1
-     dropout_rate = 0.2
-     model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
-  
-  predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras')
-  predictions.to_csv('predictions.csv')
-  #predictions = pd.DataFrame(model.predict(x_test)[:,0], index = x_test.index, columns = ['Predictions'])
-  # predictions['Predictions'] = predictions
-  # print(predictions)
-  results, trade_count, wins, losses, total_roi, roi_per_trade, return_vol = simulate_trading(msft_data, predictions)
-  baseline_results, baseline_trade_count, baseline_wins, baseline_losses, baseline_total_roi, baseline_roi_per_trade =  baseline(msft_data)
+    hpo_data = read_data('^FTSE')
+    hpo_data = make_target(hpo_data)
+    #class balance plot
+    # add technical indicators
+    hpo_data = make_additional_features(hpo_data)
+    #normalisation
+    hpo_data = normalise_data(hpo_data)
+    hpo_x = hpo_data.drop('target', axis=1)
+    val_split_fraction = 0.2
+    test_split_fraction = 0.3 # use 70% of the data for training, 30% for testing
+    test_split_index = int(hpo_x.shape[0] * (1-test_split_fraction))
+    val_split_index = int(hpo_x.shape[0] * (1-val_split_fraction-test_split_fraction))
+    train_indices = []
+    val_indices = []
+    train_indices = flatten_list(train_indices)
+    val_indices = flatten_list(val_indices)
+    hpo_val_x = hpo_x.iloc[val_split_index:test_split_index]
+    hpo_val_y = hpo_data.iloc[val_split_index:test_split_index]['target']
+    hpo_test_x = hpo_x.iloc[test_split_index:]
+    hpo_test_y = hpo_data.iloc[test_split_index:]['target']
+    hpo_train_x = hpo_x.iloc[:val_split_index]
+    hpo_train_y = hpo_data.iloc[:val_split_index]['target']
+    n_features = hpo_x.shape[1]
+    #this architecture follows Ranjan et al. 2025
+    early = EarlyStopping(patience=15, restore_best_weights=True)
+    #### HPO  ####
+    thresholds = [0.54,0.55, .56, .57]
+    n_features = hpo_x.shape[1]
+    #this architecture follows Ranjan et al. 2025
+  if not os.path.exists(f'predictions.csv'):
+    #model = make_1d_cnn_with_hpo(best_hp)
 
-  #sp500 results
-  # S&P 500 returns over the same period
+    #HPO
+    if do_hpo:
+      rs = tuner.RandomSearch(make_1d_cnn_with_hpo, objective = 'val_accuracy', max_trials = 20)
+      rs.search(hpo_train_x, hpo_train_y, epochs = 20, validation_data = (hpo_val_x, hpo_val_y))
+      best_hp = rs.get_best_hyperparameters(num_trials=1)[0]
+      print(f"Best dropout: {best_hp.get('rate')}")
+      print(f"Best learning rate: {best_hp.get('learning_rate')}")
+      rs.results_summary()
+      model = make_1d_cnn_with_hpo(best_hp)
+    else:  
+      # msft_data['Target'] = msft_data['target']
+      print(msft_data)
+      n_features = msft_data.shape[1]-1
+      dropout_rate = 0.2
+      model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
+    
+    predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras')
+    predictions.to_csv('predictions.csv')
+    #predictions = pd.DataFrame(model.predict(x_test)[:,0], index = x_test.index, columns = ['Predictions'])
+    # predictions['Predictions'] = predictions
+    # print(predictions)
+    results, trade_count, wins, losses, total_roi, roi_per_trade, return_vol = simulate_trading(msft_data, predictions)
+    baseline_results, baseline_trade_count, baseline_wins, baseline_losses, baseline_total_roi, baseline_roi_per_trade =  baseline(msft_data)
 
-  initial_capital = 10000
-  sp500_data["Returns"] = sp500_data["Close"].pct_change()
-  sp500_data["Portfolio_Value"] = (1 + sp500_data["Returns"]).cumprod() * initial_capital
-  sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
-  plot_trading_results(results, baseline_results, sp500_data, model_name='CNN')
-  print(trade_count)
-  results.to_csv('CNN_trading_strategy_results.csv')
+    #sp500 results
+    # S&P 500 returns over the same period
 
-    ############# FEATURE IMPORTANCE ###################
+    initial_capital = 10000
+    sp500_data["Returns"] = sp500_data["Close"].pct_change()
+    sp500_data["Portfolio_Value"] = (1 + sp500_data["Returns"]).cumprod() * initial_capital
+    sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
+   # plot_trading_results(results, baseline_results, sp500_data, model_name='CNN')
+    print(trade_count)
+    results.to_csv('CNN_trading_strategy_results.csv')
 
-  plt.close()
-  expl = shap.PermutationExplainer(model.predict, msft_data.drop('target').iloc[-40:-20])
-  #test_shap = expl.shap_values(x_test.iloc[0:10])
-  shaps = expl.shap_values(msft_data.drop('target').iloc[-20:-1])
-  print(shaps[...,1])
-  #plt.barh(x_test.columns.tolist(), shaps[...,1])
-  shap.summary_plot(shaps, plot_type='bar', feature_names = hpo_test_x.columns.tolist(), show=False)
-  plt.savefig('1d_cnn_feat_imp.png', dpi=600)
-  #plt.show()
+      ############# FEATURE IMPORTANCE ###################
 
+    plt.close()
+    expl = shap.PermutationExplainer(model.predict, msft_data.drop('target').iloc[-40:-20])
+    #test_shap = expl.shap_values(x_test.iloc[0:10])
+    shaps = expl.shap_values(msft_data.drop('target').iloc[-20:-1])
+    print(shaps[...,1])
+    #plt.barh(x_test.columns.tolist(), shaps[...,1])
+    shap.summary_plot(shaps, plot_type='bar', feature_names = hpo_test_x.columns.tolist(), show=False)
+    plt.savefig('1d_cnn_feat_imp.png', dpi=600)
+    #plt.show()
 
-'''
-fig, ax = plt.subplots(1,1, figsize = (4,4), layout = 'constrained')
-ax2 = ax.twinx()
-ax.plot(model.history.history['accuracy'], c = 'k', label = 'Training')
-#ax2.plot(model.history.history['val_accuracy'], c = 'r', label = 'AUC')
-ax2.spines['right'].set_color('red')
-ax2.tick_params(axis='y', colors='red')
-ax2.yaxis.label.set_color('red')
-ax2.set_ylabel('Validation AUC')
-print(model.history.history)
-#ax.plot(model.history.history['acc'], c = 'k', ls = 'dashed', label = 'Validation', alpha = 0.5)
-ax.set_ylabel('Accuracy')
-ax.set_xlabel('Epoch')
-ax.set_title('Training plot')
-ax.legend()
-fig.savefig('training.png')
-'''
-#
+  """Evaluate the model predictions using the test data, and plot two figures:
+  * ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
+  * Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
+  """
 
-"""Evaluate the model predictions using the test data, and plot two figures:
-* ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
-* Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
-"""
+  predictions = pd.read_csv(f'predictions.csv')
 
-predictions = pd.read_csv(f'predictions.csv')
+  _, recall, precision = present_model_results(predictions['Target'], predictions['Probabilities'])
 
-_, recall, precision = present_model_results(predictions['Target'], predictions['Probabilities'])
-
-print(f"Recall = {recall}")
-print(f"Precision = {precision}")
-
+  print(f"Recall = {recall}")
+  print(f"Precision = {precision}")
+  return predictions, results
 
 
