@@ -33,6 +33,9 @@ if str(SRC_PATH) not in sys.path:
 from show_results import present_model_results
 from trading import baseline
 
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['mathtext.fontset'] = 'dejavuserif'
+
 
 sp500_data = read_data('^GSPC', start =  "2000-01-01")
 
@@ -56,14 +59,15 @@ def get_baseline_and_index_results(ticker, sp500_data):
 def plot_trading_results(model_results, baseline, index_fund):
         model_colours = ['#2ea647', '#472ea6', '#a6472e']
         models = ['RF', 'CNN', 'Hybrid']
-        fig, ax = plt.subplots(1,1,figsize = (10,6))
+        fig, ax = plt.subplots(1,1,figsize = (10,4))
         
         for i, result in enumerate(model_results):
            # result.set_index('Date', inplace=True)
-            ax.plot(baseline.index, result["Profit"],c = model_colours[i], ls = 'dashed', label = f'MSFT Portfolio Profit, {models[i]}')
+            ax.plot(baseline.index[baseline.shape[0]-result.shape[0]:], result["Profit"],c = model_colours[i], ls = 'dashed', label = f'MSFT Portfolio Profit, {models[i]}')
         ax.plot(baseline.index, baseline["Profit"], 'b--',label = 'Baseline Strategy Profit')
         ax.plot(index_fund.index, index_fund["Profit"], 'k-', label = 'Index Fund Profit')
         ax.legend()
+        ax.grid()
         ax.set_title("Trading Strategy Performance")
         ax.set_xlabel("Date")
         ax.set_ylabel("USD ($) Value")
@@ -82,7 +86,7 @@ y_dataframes_set = []
 
 
 model_results_data_files = [f'notebooks/model_{k}_predictions.csv' for k in [ 'i', 'ii', 'iii']]
-model_trading_data_files = [f'notebooks/model_{k}_profit.csv' for k in [ 'ii', 'ii', 'ii']]
+model_trading_data_files = [f'notebooks/model_{k}_profit.csv' for k in [ 'i', 'ii', 'ii']]
 print(model_results_data_files)
 print("heppp")
 for j, model_results in enumerate(model_results_data_files):
