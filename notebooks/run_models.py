@@ -16,6 +16,7 @@ from _04_cnn import run_cnn, read_data
 #from _05_FCN_ExtraTrees_XGBoost import run_hybrid
 import yfinance as yf
 import sys
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -78,8 +79,10 @@ baseline_outcome, sp500 = get_baseline_and_index_results('MSFT', sp500_data)
 
 # take results csv if not found
 model_results_data_files = [f'model_{k}_predictions.csv' for k in ['i', 'ii', 'iii']]
+
 for model_results in model_results_data_files:
-    y_dataframes_set.append(pd.read_csv(model_results))
+    if os.path.exists(model_results):
+     y_dataframes_set.append(pd.read_csv(model_results))
 
 
 
