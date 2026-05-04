@@ -16,6 +16,7 @@ from _04_cnn import run_cnn, read_data
 #from _05_FCN_ExtraTrees_XGBoost import run_hybrid
 import yfinance as yf
 import sys
+import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
@@ -74,11 +75,12 @@ y_dataframes_set = []
 trading_results_set = []
 # get the baseline profit and sp500 profit to compare
 baseline_outcome, sp500 = get_baseline_and_index_results('MSFT', sp500_data)
-for model_function in [run_cnn]:
-    # y_dataframe is the predictions dataframe from the backtesting.
-    y_dataframe, trading_results = model_function(data)
-    y_dataframes_set.append(y_dataframe)
-    trading_results_set.append(trading_results)
+
+# take results csv if not found
+model_results_data_files = [f'model_{k}_predictions.csv' for k in ['i', 'ii', 'iii']]
+for model_results in model_results_data_files:
+    y_dataframes_set.append(pd.read_csv(model_results))
+
 
 
 #generate the results figure (3 sets of results)    
@@ -87,4 +89,4 @@ present_model_results(y_dataframes_set)
 
 # generate the trading results figure
 
-plot_trading_results(trading_results_set, baseline_outcome[0], sp500)
+#plot_trading_results(trading_results_set, baseline_outcome[0], sp500)
