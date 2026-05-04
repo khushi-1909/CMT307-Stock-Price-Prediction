@@ -8,8 +8,8 @@ venv/
 env/
 
 #Poetry
-.lock
-.toml
+.lock/
+.toml/
 
 
 
