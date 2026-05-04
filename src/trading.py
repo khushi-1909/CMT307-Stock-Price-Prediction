@@ -11,9 +11,10 @@ from sklearn.metrics import roc_curve, auc
 def plot_trading_results(results, baseline, index_fund, model_name):
 
         plt.figure(figsize=(10, 6))
-        plt.plot(results.index, results["Profit"], 'r--', label = 'MSFT Portfolio Profit')
-        plt.plot(baseline.index, baseline["Profit"], 'b--',label = 'Baseline Strategy Profit')
-        plt.plot(index_fund.index, index_fund["Profit"], 'k-', label = 'Index Fund Profit')
+        print(results['Date'])
+        plt.plot(results["Profit"], 'r--', label = 'MSFT Portfolio Profit')
+        plt.plot(baseline["Profit"], 'b--',label = 'Baseline Strategy Profit')
+        plt.plot(index_fund["Profit"], 'k-', label = 'Index Fund Profit')
         plt.legend()
         plt.title("Trading Strategy Performance")
         plt.xlabel("Date")

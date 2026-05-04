@@ -387,5 +387,6 @@ def run_cnn(ticker):
   print(f"Precision = {precision}")
   return predictions, results
 
-run_cnn('MSFT')
+if __name__ == "__main__":
+  run_cnn('MSFT')
 
