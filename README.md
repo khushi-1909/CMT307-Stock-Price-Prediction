@@ -1,19 +1,70 @@
 # CMT307 Stock Price Prediction
 
-Group repository for the Applied Machine Learning project.
+This repository contains the code for CMT Applied Amchine Learning project on stock price prediction. 
 
-<<<<<<< HEAD
-to be added:
-1. How to create environment / install requirements
-2. How to run descriptive analysis
-3. How to run preprocessing
-4. How to train/evaluate each model
-5. Which files produce report figures/results
-6. Expected outputs
-=======
-Description of each code file:
+The task is to predict whether the MSFT closing price will inclrease over a 90-trading-dat horizon using historical OHLC data and derived technical features. The task is treated as a binary classification problem:
+- `1`: closing price after 90 days is higher than the current closing price
+- `0`:closing price after 90 days is lower than or equal to the current closing price
+
+The project includes exploratory data analysis, preprocessing and feature engineering, model training, walk forward evaluation, and a simple trading algorithm
+
+## Project Structure
+```text
+
+data/
+    README.md
+
+notebooks/
+    _01_descriptive_analysis.ipynb
+    _02_preprocessing_and_features.ipynb
+    _03_random_forest.ipynb
+    _04_cnn.py
+    _05_FCN_ExtraTrees_XGBoost.ipynb
+    run_models.py
+
+src/
+    features.py
+    backtesting.py
+    trading.py
+    show_results.py
+    mlstock.py
+    cnn_1d.py
+
+docs/
+archive/
+outputs/
+requirements.txt
+README.md
+
+```
+
+## Setup
+To run the project, first clone or download the repository and then install the requied python packages from `requirements.txt`
+
+The project was developed using Python 3.
+
+## Dataset
+The stock data is downloaded using the `yfinance` package. 
+
+- Ticker : `MSFT`
+- Frequency: Daily Trading Data
+- Date Range: January 1999 to March 2026 (approx.)
+- Main Variables: Open, High, Low, Close, Adjusted Close, Volume
+
+## Target Variable
+The prediction target is based on the closing price:
+
+```text
+Target = 1 if Close[t+90] > Close[t]
+Target = 0 otherwise
+```
+
+The final 90 rows are removed because the future closing price is not available for those dates.
+
+This gives a moderately imbalanced classification task because MSFT has an overall upward trend across the selected period.
 
 
+## File Description
 
 ### run_models.py
 
