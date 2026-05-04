@@ -80,7 +80,7 @@ baseline_outcome, sp500 = get_baseline_and_index_results('MSFT', sp500_data)
 # take results csv if not found
 y_dataframes_set = []
 
-model_results_data_files = [f'notebooks/model_{k}_predictions.csv' for k in ['iii', 'iii', 'iii']]
+model_results_data_files = [f'notebooks/model_{k}_predictions.csv' for k in [ 'i', 'ii', 'iii']]
 print(model_results_data_files)
 print("heppp")
 for model_results in model_results_data_files:
@@ -92,7 +92,7 @@ for model_results in model_results_data_files:
 #generate the results figure (3 sets of results)    
 print(y_dataframes_set[0])
 
-present_model_results([y['True'].to_numpy() for y in y_dataframes_set], [y['Probability'].to_numpy() for y in y_dataframes_set])
+present_model_results([y['Target'].to_numpy() for y in y_dataframes_set], [y['Probabilities'].to_numpy() for y in y_dataframes_set])
 
 # generate the trading results figure
 

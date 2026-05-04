@@ -365,9 +365,9 @@ def run_cnn(ticker):
       ############# FEATURE IMPORTANCE ###################
 
     plt.close()
-    expl = shap.PermutationExplainer(model.predict, msft_data.drop('target').iloc[-40:-20])
+    expl = shap.PermutationExplainer(model.predict, msft_data.drop('Target').iloc[-40:-20])
     #test_shap = expl.shap_values(x_test.iloc[0:10])
-    shaps = expl.shap_values(msft_data.drop('target').iloc[-20:-1])
+    shaps = expl.shap_values(msft_data.drop('Target').iloc[-20:-1])
     print(shaps[...,1])
     #plt.barh(x_test.columns.tolist(), shaps[...,1])
     shap.summary_plot(shaps, plot_type='bar', feature_names = hpo_test_x.columns.tolist(), show=False)
@@ -387,4 +387,5 @@ def run_cnn(ticker):
   print(f"Precision = {precision}")
   return predictions, results
 
+run_cnn('MSFT')
 

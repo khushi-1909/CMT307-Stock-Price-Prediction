@@ -35,11 +35,11 @@ def present_model_results(y_test, y_pred_set):
      roc_auc_set.append(roc_auc)
      ax[2].plot(rec, prec, c = model_colours[i], label = models[i]) #precision recall curve
      ax[0].plot(fpr, tpr, c = model_colours[i], label = models[i]) # ROC curve
-     cmats.append(confusion_matrix(y_test_,y_pred_class_set[i], normalize = 'pred'))
+     cmats.append(confusion_matrix(y_test_,y_pred_class_set[i], normalize = 'true'))
   # auc bar chart
   b = ax[1].bar([0,1,2], roc_auc_set, color = model_colours)
   ax[1].bar_label(b, label_type='center', fmt = '%.3f',color = 'w' )
-  ax[2].legend()
+  ax[2].legend(loc='center left')
   ax[0].legend()
   for j,a in enumerate(ax[3:]):
     im = a.imshow(cmats[j], cmap = 'cividis', vmin=0, vmax = 1)
@@ -48,6 +48,10 @@ def present_model_results(y_test, y_pred_set):
     a.set_ylabel('Prediction')
     a.set_xticks([0,1])
     a.set_title(f'Confusion matrix, {models[j]}')
+    a.text(-0.2,-0.2, round(cmats[j][0][0],3), color = 'w')
+    a.text(-0.2, 0.8, round(cmats[j][1][0],3), color = 'w')
+    a.text(0.8, -0.2,round(cmats[j][0][1],3), color = 'w')
+    a.text(0.8, 0.8,round(cmats[j][1][1],3), color = 'w')
   fig.colorbar(im, label = 'Fraction')
   fig.savefig('Results_Figure.png')
   return 0
