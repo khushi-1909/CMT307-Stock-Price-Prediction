@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import precision_recall_curve, roc_curve, auc, confusion_matrix, precision_score, recall_score, make_scorer, accuracy_score, f1_score
+from sklearn.metrics import precision_recall_curve, classification_report, roc_curve, auc, confusion_matrix, precision_score, recall_score, make_scorer, accuracy_score, f1_score
 import matplotlib.pyplot as plt
 def present_model_results(y_test, y_pred_set):
   thresh=0.51
@@ -28,9 +28,8 @@ def present_model_results(y_test, y_pred_set):
      y_pred_class_set.append((np.where(model_pred > thresh, 1,0)))
      y_test_ = y_test[i]
      fpr, tpr, _ = roc_curve(y_test_, model_pred)
-     #recall = recall_score(y_test,y_pred_class_set[i])
-     #precision = precision_score(y_test,y_pred_class_set[i])
      rec, prec, _ = precision_recall_curve(y_test_, model_pred, drop_intermediate=False)
+     print(classification_report(y_test_, model_pred))
      roc_auc = auc(fpr,tpr)
      roc_auc_set.append(roc_auc)
      ax[2].plot(rec, prec, c = model_colours[i], label = models[i]) #precision recall curve
