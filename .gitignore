@@ -7,6 +7,12 @@ __pycache__/
 venv/
 env/
 
+#Poetry
+.lock
+.toml
+
+
+
 # Jupyter
 .ipynb_checkpoints/
 

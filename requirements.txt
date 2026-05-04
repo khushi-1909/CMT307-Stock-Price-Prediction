@@ -10,3 +10,4 @@ tensorflow
 keras-tuner
 xgboost
 eli5
+shap

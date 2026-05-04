@@ -11,8 +11,8 @@ results. The trading results are also plotted using the function in src/trading.
 
 
 
-#from _03_random_forest import run_random_forest
-from _04_cnn import run_cnn, read_data
+#from _03_random_forest import run_random_forest#
+#from _04_cnn import run_cnn, read_data
 #from _05_FCN_ExtraTrees_XGBoost import run_hybrid
 import yfinance as yf
 import sys
@@ -30,10 +30,10 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.append(str(SRC_PATH))
 
-from src.show_results import present_model_results
-from src.trading import baseline
+from show_results import present_model_results
+from trading import baseline
 
-sp500_data = read_data('^GSPC', start =  "2000-01-01")
+#sp500_data = read_data('^GSPC', start =  "2000-01-01")
 
 #get baseline and S&P500 profit yields
 
@@ -70,16 +70,19 @@ def plot_trading_results(model_results, baseline, index_fund):
 
 
 # to import from the src/ folder when running the notebook
-
+'''
 data = yf.Ticker('MSFT')
-y_dataframes_set = []
+
 trading_results_set = []
 # get the baseline profit and sp500 profit to compare
 baseline_outcome, sp500 = get_baseline_and_index_results('MSFT', sp500_data)
-
+'''
 # take results csv if not found
-model_results_data_files = [f'model_{k}_predictions.csv' for k in ['i', 'ii', 'iii']]
+y_dataframes_set = []
 
+model_results_data_files = [f'notebooks/model_{k}_predictions.csv' for k in ['iii', 'iii', 'iii']]
+print(model_results_data_files)
+print("heppp")
 for model_results in model_results_data_files:
     if os.path.exists(model_results):
      y_dataframes_set.append(pd.read_csv(model_results))
@@ -87,8 +90,9 @@ for model_results in model_results_data_files:
 
 
 #generate the results figure (3 sets of results)    
+print(y_dataframes_set[0])
 
-present_model_results(y_dataframes_set)
+present_model_results([y['True'].to_numpy() for y in y_dataframes_set], [y['Probability'].to_numpy() for y in y_dataframes_set])
 
 # generate the trading results figure
 
