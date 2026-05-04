@@ -343,8 +343,8 @@ def run_cnn(ticker):
       dropout_rate = 0.2
       model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
     
-    predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras')
-    predictions.to_csv('predictions.csv')
+    predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras', step=63)
+    predictions.to_csv('model_ii_predictions.csv')
     #predictions = pd.DataFrame(model.predict(x_test)[:,0], index = x_test.index, columns = ['Predictions'])
     # predictions['Predictions'] = predictions
     # print(predictions)
@@ -360,7 +360,7 @@ def run_cnn(ticker):
     sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
    # plot_trading_results(results, baseline_results, sp500_data, model_name='CNN')
     print(trade_count)
-    results.to_csv('CNN_trading_strategy_results.csv')
+    results.to_csv('model_ii_profit.csv')
 
       ############# FEATURE IMPORTANCE ###################
 
