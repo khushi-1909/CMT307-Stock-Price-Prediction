@@ -29,8 +29,8 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.append(str(SRC_PATH))
 
-from show_results import present_model_results
-from trading import baseline
+from src.show_results import present_model_results
+from src.trading import baseline
 
 sp500_data = read_data('^GSPC', start =  "2000-01-01")
 
