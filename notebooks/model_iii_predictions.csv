@@ -1,4 +1,4 @@
-Date,True,Predictions,Probability
+Date,Target,Predictions,Probabilities
 2004-05-03,1,1,0.5060103874515339
 2004-05-04,1,1,0.7325025799838227
 2004-05-05,1,1,0.7325025799838227

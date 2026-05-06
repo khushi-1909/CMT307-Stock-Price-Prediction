@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from itertools import product
-from sklearn.metrics import precision_recall_curve, roc_curve, auc, confusion_matrix, precision_score, recall_score, make_scorer, accuracy_score, f1_score
+from sklearn.metrics import precision_recall_curve, classification_report, roc_curve, auc, confusion_matrix, precision_score, recall_score, make_scorer, accuracy_score, f1_score
 from keras.models import Sequential
 from keras.metrics import AUC
 from keras.losses import BinaryFocalCrossentropy
@@ -58,6 +58,7 @@ if str(SRC_PATH) not in sys.path:
 
 from backtesting import predict_90, backtest_90
 from trading import simulate_trading, baseline, plot_trading_results
+from show_results import present_model_results
 
 ### FUNCTIONS ####
 
@@ -192,7 +193,7 @@ def plot_trading_results(results, baseline, index_fund, model_name):
 
         #print(f"Total Trades: {trade_count}")
         #print(f"Win Rate: {wins / trade_count}")
-
+'''
 def present_model_results(y_test, y_pred):
   thresh=0.5
   y_pred_class = np.where(y_pred > thresh, 1,0)
@@ -242,7 +243,7 @@ def present_model_results(y_test, y_pred):
   fig.savefig('roc.png')
   #x_test.set_index(msft_data.index)
   return y_pred, recall, precision
-
+'''
 def read_data(ticker, start = "1990-01-01" , end = "2025-12-31"):
    data = yf.Ticker(ticker)
    data = data.history(start =  start,end =end)
@@ -324,7 +325,7 @@ def run_cnn(ticker):
     thresholds = [0.54,0.55, .56, .57]
     n_features = hpo_x.shape[1]
     #this architecture follows Ranjan et al. 2025
-  if not os.path.exists(f'predictions.csv'):
+  if not os.path.exists(f'notebooks/model_ii_predictions.csv'):
     #model = make_1d_cnn_with_hpo(best_hp)
 
     #HPO
@@ -343,8 +344,8 @@ def run_cnn(ticker):
       dropout_rate = 0.2
       model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
     
-    predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras')
-    predictions.to_csv('predictions.csv')
+    predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras', step=63)
+    predictions.to_csv('model_ii_predictions.csv')
     #predictions = pd.DataFrame(model.predict(x_test)[:,0], index = x_test.index, columns = ['Predictions'])
     # predictions['Predictions'] = predictions
     # print(predictions)
@@ -360,14 +361,14 @@ def run_cnn(ticker):
     sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
    # plot_trading_results(results, baseline_results, sp500_data, model_name='CNN')
     print(trade_count)
-    results.to_csv('CNN_trading_strategy_results.csv')
+    results.to_csv('model_ii_profit.csv')
 
       ############# FEATURE IMPORTANCE ###################
 
     plt.close()
-    expl = shap.PermutationExplainer(model.predict, msft_data.drop('target').iloc[-40:-20])
+    expl = shap.PermutationExplainer(model.predict, msft_data.drop('Target').iloc[-40:-20])
     #test_shap = expl.shap_values(x_test.iloc[0:10])
-    shaps = expl.shap_values(msft_data.drop('target').iloc[-20:-1])
+    shaps = expl.shap_values(msft_data.drop('Target').iloc[-20:-1])
     print(shaps[...,1])
     #plt.barh(x_test.columns.tolist(), shaps[...,1])
     shap.summary_plot(shaps, plot_type='bar', feature_names = hpo_test_x.columns.tolist(), show=False)
@@ -379,12 +380,14 @@ def run_cnn(ticker):
   * Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
   """
 
-  predictions = pd.read_csv(f'predictions.csv')
+  predictions = pd.read_csv(f'notebooks/model_ii_predictions.csv')
+  print(classification_report(predictions['Target'],np.where(predictions['Probabilities'] > 0.51, 1,0)))
+ # present_model_results([predictions['Target']], [predictions['Probabilities']])
 
-  _, recall, precision = present_model_results(predictions['Target'], predictions['Probabilities'])
+  #print(f"Recall = {recall}")
+  #print(f"Precision = {precision}")
+  return predictions
 
-  print(f"Recall = {recall}")
-  print(f"Precision = {precision}")
-  return predictions, results
-
+if __name__ == "__main__":
+  run_cnn('MSFT')
 
