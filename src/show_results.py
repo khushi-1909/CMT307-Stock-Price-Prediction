@@ -28,17 +28,17 @@ def present_model_results(y_test, y_pred_set):
      y_pred_class_set.append((np.where(model_pred > thresh, 1,0)))
      y_test_ = y_test[i]
      fpr, tpr, _ = roc_curve(y_test_, model_pred)
-     rec, prec, _ = precision_recall_curve(y_test_, model_pred, drop_intermediate=False)
+     prec,rec, _ = precision_recall_curve(y_test_, model_pred, drop_intermediate=False)
      print(classification_report(y_test_, y_pred_class_set[i]))
      roc_auc = auc(fpr,tpr)
      roc_auc_set.append(roc_auc)
-     ax[2].plot(rec, prec, c = model_colours[i], label = models[i]) #precision recall curve
+     ax[2].plot(rec[0:], prec[0:], c = model_colours[i], label = models[i]) #precision recall curve
      ax[0].plot(fpr, tpr, c = model_colours[i], label = models[i]) # ROC curve
      cmats.append(confusion_matrix(y_test_,y_pred_class_set[i], normalize = 'true'))
   # auc bar chart
   b = ax[1].bar([0,1,2], roc_auc_set, color = model_colours)
   ax[1].bar_label(b, label_type='center', fmt = '%.3f',color = 'w' )
-  ax[2].legend(loc='center left')
+  ax[2].legend()
   ax[0].legend()
   for j,a in enumerate(ax[3:]):
     im = a.imshow(cmats[j], cmap = 'cividis', vmin=0, vmax = 1)
