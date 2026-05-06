@@ -68,7 +68,6 @@ from show_results import present_model_results
 def read_data(ticker, start = "1990-01-01" , end = "2025-12-31"):
    data = yf.Ticker(ticker)
    data = data.history(start =  start,end =end)
-   data.to_csv(f'{ticker}.csv')
    data.index = pd.to_datetime(data.index)
    return data
  
