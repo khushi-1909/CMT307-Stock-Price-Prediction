@@ -9,7 +9,7 @@ Original file is located at
 ##1D CNN Attempt
 
 ###Data source: FTSE 100 index, 1999-2026.
-###Label: Whether the close price $y$ has increased by the next day. (if $y(t+1) > y(t)$)
+###Label: Whether the close price $y$ has increased in 90 days. (if $y(t+90) > y(t)$)
 
 Resources used:
 
@@ -63,6 +63,27 @@ from show_results import present_model_results
 ### FUNCTIONS ####
 
 
+# read in the ticker data #
+
+def read_data(ticker, start = "1990-01-01" , end = "2025-12-31"):
+   data = yf.Ticker(ticker)
+   data = data.history(start =  start,end =end)
+   data.to_csv(f'{ticker}.csv')
+   data.index = pd.to_datetime(data.index)
+   return data
+ 
+# input normalisation (min-max)#
+
+def normalise_data(ticker_data):
+    mm = MinMaxScaler()
+    data_norm = mm.fit_transform(ticker_data)
+    date_index = pd.to_datetime(ticker_data.index)
+    ticker_data = pd.DataFrame(data_norm, columns = ticker_data.columns)
+    ticker_data.index = date_index
+    return ticker_data
+
+# make the directional target
+
 def make_target(ticker_data):
   ticker_data = ticker_data[['High', 'Low', 'Open', 'Close', 'Volume']]
   ticker_data['close_90'] = ticker_data['Close'].shift(-90)
@@ -70,6 +91,7 @@ def make_target(ticker_data):
   #ticker_data['Close'] = np.log(ticker_data['Close'])
   return ticker_data
 
+#weighted movig average technical indicator
 def weighted_ma(t, close, window_size):
   numer_sum = 0
   denom_sum = 0
@@ -78,6 +100,7 @@ def weighted_ma(t, close, window_size):
     denom_sum += (window_size-i)
   return numer_sum / denom_sum
 
+#exponential moving average
 def exponential_ma(close, window_size, smoothing_alpha=0.3):
   smooth = np.zeros(window_size)
   smooth[0] = close.iloc[0]
@@ -93,15 +116,9 @@ def plot_class_balance(ticker_data):
   axs.set_ylabel('Fraction')
   axs.set_title('Class balance')
   fig.savefig('class_balance.png', dpi=600)
+
+# add technical indicators to input datafarme
 def make_additional_features(ticker_data):
- # ticker_data['EMA'] = exponential_ma(ticker_data.Close, window_size = ticker_data.shape[0])
-  #ticker_data['Close'] =  ticker_data['EMA']
-  '''
-  ticker_data['EMA_Close'] = ticker_data['Close'].ewm(alpha = .6, adjust = False).mean()
-  ticker_data['EMA_Open'] = ticker_data['Open'].ewm(alpha = .6, adjust = False).mean()
-  ticker_data['EMA_High'] = ticker_data['High'].ewm(alpha = .6, adjust = False).mean()
-  ticker_data['EMA_Low'] = ticker_data['Low'].ewm(alpha = .6, adjust = False).mean()
-  '''
   ticker_data['SMA'] = ticker_data.Close.rolling(10, min_periods = 1).mean() # simple moving avg
   ticker_data['Momentum'] = ticker_data.Close - ticker_data.Close.shift(-10) # momentum
   ticker_data['Momentum'] = ticker_data['Momentum'].fillna(0) # replace the NAN values from the momentum
@@ -109,27 +126,15 @@ def make_additional_features(ticker_data):
 
   ticker_data['High_Low_Diff'] = ticker_data.High / ticker_data.Low
   ticker_data['open_close_ratio'] = ticker_data.Open / ticker_data.Close
-  #RSI - from Jakub's model
-  '''
-  ticker_data = RSI(ticker_data, k_window=10)
-  ticker_data = Williams(ticker_data, k_window=10)
-  ticker_data = MACD(ticker_data)
-  ticker_data = OBV(ticker_data)
-  ticker_data['Williams %R'].fillna(0, inplace=True)
-  ticker_data['RSI'].fillna(0, inplace=True)
-  
-  ticker_data["return_5"] = ticker_data["EMA_Close"].pct_change(5)
-  ticker_data["return_14"] = ticker_data["EMA_Close"].pct_change(14)
-  ticker_data["return_90"] = ticker_data["EMA_Close"].pct_change(90)
-  ticker_data["volatility"] = ticker_data["EMA_Close"].rolling(7).std()
-  ticker_data["momentum_7"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(7)
-  ticker_data["momentum_30"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(30)
-  ticker_data["momentum_90"] = ticker_data["EMA_Close"] / ticker_data["EMA_Close"].shift(90)
-  '''
   return ticker_data
+
+#utility function
 
 def flatten_list(_list):
   return [t for t_ in _list for t in t_]
+
+
+################ MAIN MODEL ARCHITECTURE ##################
 
 def make_1d_cnn(n_features,optimiser='adam', dropout_rate=0.2,  kernel_size = 3, padding = 'same') :
   model  = Sequential()
@@ -154,7 +159,9 @@ def make_1d_cnn(n_features,optimiser='adam', dropout_rate=0.2,  kernel_size = 3,
 
   return model
 
-def make_1d_cnn_with_hpo(hp) :
+
+########### HYPERPARAMETER OPTIMISATION (NOT USED DUE TO OVERFITTING) ##############
+def make_1d_cnn_with_hpo(hp, n_features) :
   model  = Sequential()
   model.add(Conv1D(filters=32, kernel_size=3, padding ='same',input_shape = (n_features,1)))
   model.add(BatchNormalization())
@@ -178,6 +185,9 @@ def make_1d_cnn_with_hpo(hp) :
 
   return model
 
+
+#### plot the results of the trading alg #######
+
 def plot_trading_results(results, baseline, index_fund, model_name):
 
         plt.figure(figsize=(10, 6))
@@ -193,71 +203,8 @@ def plot_trading_results(results, baseline, index_fund, model_name):
 
         #print(f"Total Trades: {trade_count}")
         #print(f"Win Rate: {wins / trade_count}")
-'''
-def present_model_results(y_test, y_pred):
-  thresh=0.5
-  y_pred_class = np.where(y_pred > thresh, 1,0)
-  #plt.plot(x_test.index, y_pred, label = 'Predicted')
-  #plt.plot(x_test.index, y_test, label = 'Actual')
-  fpr, tpr, threshold = roc_curve(y_test, y_pred)
-  roc_auc = auc(fpr,tpr)
-  recall = recall_score(y_test,y_pred_class)
-  precision = precision_score(y_test,y_pred_class)
-  fig, ax = plt.subplots(2,3, figsize = (10,6), layout = 'constrained')
-  ax = ax.flatten()
-  ax[0].set_ylabel('True Positive Rate')
-  ax[0].set_xlabel('False Positive Rate')
-  rec, prec, thresh = precision_recall_curve(y_test, y_pred, drop_intermediate=False)
-  print(y_test)
-  ax[2].plot(rec, prec, c = 'r', label = 'CNN')
-  ax[2].set_ylabel('Precision')
-  ax[2].set_xlabel('Recall')
-  ax[2].set_title('Precision-Recall')
-  ax[0].plot(fpr, tpr,  c='r', label = 'CNN')
-  b = ax[1].bar([0,1,2], [roc_auc, roc_auc, roc_auc], color = ['r', 'g', 'b'])
-  ax[1].bar_label(b, label_type='center', fmt = '%.3f',color = 'w' )
-  ax[1].set_ylabel('AUC')
-  ax[1].set_title('Area Under ROC Curve (AUC)')
-  ax[1].set_xlabel('Model')
-  ax[1].set_xticks([0,1,2])
-  ax[1].set_xticklabels(['I: RF', 'II: CNN', 'III: Hybrid'])
-  ax[2].legend()
-  #ax[0].fill_between(np.linspace(0,1,100), roc, c = 'r', alpha = 0.2)
-  ax[0].plot(np.linspace(0,1,100), np.linspace(0,1,100), label = 'AUC=0.5', c = 'k', ls = 'dashed')
-  ax[0].legend()
-  cmat = confusion_matrix(y_test,y_pred_class, normalize = 'pred')
-  ax[0].set_title('ROC Curve')
-  labels = ['I', 'II', 'III']
-  for j,a in enumerate(ax[3:]):
-    im = a.imshow(cmat, cmap = 'cividis')
-    a.set_yticks([0,1])
-    a.set_xlabel('Ground truth')
-    a.set_ylabel('Prediction')
-    a.set_xticks([0,1])
-  
-    a.set_title(f'Confusion matrix, Model {labels[j]}')
-  #delete third panel
-  #fig.delaxes(ax[2])
-  cb = fig.colorbar(im, label = 'Fraction')
- # cb.set_ticks([1e-2,1e-1,1e0])
-  fig.savefig('roc.png')
-  #x_test.set_index(msft_data.index)
-  return y_pred, recall, precision
-'''
-def read_data(ticker, start = "1990-01-01" , end = "2025-12-31"):
-   data = yf.Ticker(ticker)
-   data = data.history(start =  start,end =end)
-   data.to_csv(f'{ticker}.csv')
-   data.index = pd.to_datetime(data.index)
-   return data
 
-def normalise_data(ticker_data):
-    mm = MinMaxScaler()
-    data_norm = mm.fit_transform(ticker_data)
-    date_index = pd.to_datetime(ticker_data.index)
-    ticker_data = pd.DataFrame(data_norm, columns = ticker_data.columns)
-    ticker_data.index = date_index
-    return ticker_data
+
 
 """Use the MSFT index from 1 Jan 1999 to 1 Mar 2026:"""
 
@@ -330,6 +277,7 @@ def run_cnn(ticker):
 
     #HPO
     if do_hpo:
+      # Random Search on the hyperparameters
       rs = tuner.RandomSearch(make_1d_cnn_with_hpo, objective = 'val_accuracy', max_trials = 20)
       rs.search(hpo_train_x, hpo_train_y, epochs = 20, validation_data = (hpo_val_x, hpo_val_y))
       best_hp = rs.get_best_hyperparameters(num_trials=1)[0]
@@ -338,17 +286,16 @@ def run_cnn(ticker):
       rs.results_summary()
       model = make_1d_cnn_with_hpo(best_hp)
     else:  
-      # msft_data['Target'] = msft_data['target']
+      #choose arbitary hyperparameters
       print(msft_data)
       n_features = msft_data.shape[1]-1
       dropout_rate = 0.2
       model = make_1d_cnn(n_features, dropout_rate=dropout_rate)
     
-    predictions, oob_scores = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras', step=63)
+    # run backtest function
+    predictions, _ = backtest_90(msft_data, model, msft_data.drop('Target', axis=1).columns.tolist(), engine = 'keras', step=63)
     predictions.to_csv('model_ii_predictions.csv')
-    #predictions = pd.DataFrame(model.predict(x_test)[:,0], index = x_test.index, columns = ['Predictions'])
-    # predictions['Predictions'] = predictions
-    # print(predictions)
+    # run trading algorithm
     results, trade_count, wins, losses, total_roi, roi_per_trade, return_vol = simulate_trading(msft_data, predictions)
     baseline_results, baseline_trade_count, baseline_wins, baseline_losses, baseline_total_roi, baseline_roi_per_trade =  baseline(msft_data)
 
@@ -359,32 +306,29 @@ def run_cnn(ticker):
     sp500_data["Returns"] = sp500_data["Close"].pct_change()
     sp500_data["Portfolio_Value"] = (1 + sp500_data["Returns"]).cumprod() * initial_capital
     sp500_data['Profit'] = sp500_data['Portfolio_Value'] - initial_capital
-   # plot_trading_results(results, baseline_results, sp500_data, model_name='CNN')
     print(trade_count)
     results.to_csv('model_ii_profit.csv')
 
-      ############# FEATURE IMPORTANCE ###################
+      ############# FEATURE IMPORTANCE USING SHAP VALUES ###################
 
     plt.close()
     expl = shap.PermutationExplainer(model.predict, msft_data.drop('Target').iloc[-40:-20])
     #test_shap = expl.shap_values(x_test.iloc[0:10])
     shaps = expl.shap_values(msft_data.drop('Target').iloc[-20:-1])
-    print(shaps[...,1])
     #plt.barh(x_test.columns.tolist(), shaps[...,1])
     shap.summary_plot(shaps, plot_type='bar', feature_names = hpo_test_x.columns.tolist(), show=False)
     plt.savefig('1d_cnn_feat_imp.png', dpi=600)
     #plt.show()
 
-  """Evaluate the model predictions using the test data, and plot two figures:
-  * ROC curve: a plot of the false positive rate (```fpr```) against the true positive rate (```tpr```). A straight $y=x$ line, with area under curve (AUC) of 0.5, means the model is no better than random predictions.
-  * Confusion matrix: a grid of the true positives and negatives for the binary problem (i.e. true 1s and 0s) on the diagonals, with false positives and negatives on the off-diagonals.
-  """
+  # save predictions to CSV file
 
   predictions = pd.read_csv(f'notebooks/model_ii_predictions.csv')
+  
+  #print the classification report (for the table in the main report)
+
   print(classification_report(predictions['Target'],np.where(predictions['Probabilities'] > 0.51, 1,0)))
  # present_model_results([predictions['Target']], [predictions['Probabilities']])
 
-  #print(f"Recall = {recall}")
   #print(f"Precision = {precision}")
   return predictions
 
