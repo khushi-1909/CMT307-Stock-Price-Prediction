@@ -38,6 +38,7 @@ def baseline(df, horizon=90,
         trade_count = 0
         wins = 0
         losses = 0
+      
 
         trade_returns = []
 
@@ -113,6 +114,7 @@ def simulate_trading(df, predictions, horizon=90,
 
         df = df.copy()
         df = df.loc[predictions.index]
+        
         print(df)
         df["Predictions"] = predictions["Predictions"]
 
@@ -125,6 +127,7 @@ def simulate_trading(df, predictions, horizon=90,
         trade_count = 0
         wins = 0
         losses = 0
+        ret = 0
 
         trade_returns = []  # <-- store returns per trade
 
@@ -197,6 +200,6 @@ def simulate_trading(df, predictions, horizon=90,
         )
 
         # Return volatility
-        return_vol = ret.std()
+        return_vol = np.array(trade_returns).std()
 
         return df, trade_count, wins, losses, return_pct, avg_return_per_trade, return_vol

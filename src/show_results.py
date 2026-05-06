@@ -29,7 +29,7 @@ def present_model_results(y_test, y_pred_set):
      y_test_ = y_test[i]
      fpr, tpr, _ = roc_curve(y_test_, model_pred)
      rec, prec, _ = precision_recall_curve(y_test_, model_pred, drop_intermediate=False)
-     print(classification_report(y_test_, model_pred))
+     print(classification_report(y_test_, y_pred_class_set[i]))
      roc_auc = auc(fpr,tpr)
      roc_auc_set.append(roc_auc)
      ax[2].plot(rec, prec, c = model_colours[i], label = models[i]) #precision recall curve

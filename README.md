@@ -1,6 +1,6 @@
 # CMT307 Stock Price Prediction
 
-This repository contains the code for CMT Applied Amchine Learning project on stock price prediction. 
+This repository contains the code for CMT307 Applied Machine Learning project on stock price prediction. 
 
 The task is to predict whether the MSFT closing price will inclrease over a 90-trading-dat horizon using historical OHLC data and derived technical features. The task is treated as a binary classification problem:
 - `1`: closing price after 90 days is higher than the current closing price
@@ -68,7 +68,7 @@ This gives a moderately imbalanced classification task because MSFT has an overa
 
 ### run_models.py
 
-Run this file to train and test **all** models against the MSFT dataset, as well as calculate the trading algorithm using the model predictions. Produces Figure 4 (classifiation performance) and Figure 5 (trading profits) in the report.
+Run this file to generate all results figures in the report (classification performance and trading profit). This uses the output .csv files from the Python scripts building each model.
 
 ### _01_descriptive_analysis.ipynb 
 

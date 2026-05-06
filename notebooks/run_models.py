@@ -12,7 +12,7 @@ results. The trading results are also plotted using the function in src/trading.
 
 
 #from _03_random_forest import run_random_forest#
-from _04_cnn import read_data
+from _04_cnn import read_data, normalise_data
 #from _05_FCN_ExtraTrees_XGBoost import run_hybrid
 import yfinance as yf
 import sys
@@ -31,7 +31,7 @@ if str(SRC_PATH) not in sys.path:
     sys.path.append(str(SRC_PATH))
 
 from show_results import present_model_results
-from trading import baseline
+from trading import baseline, simulate_trading
 
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'dejavuserif'
@@ -57,9 +57,9 @@ def get_baseline_and_index_results(ticker, sp500_data):
 ## plot all the profit results from each model, compared to a (single) baseline and index fund (sp500)
 
 def plot_trading_results(model_results, baseline, index_fund):
-        model_colours = ['#2ea647', '#472ea6', '#a6472e']
+        model_colours = ['#2ea647', '#472ea6']
         models = ['RF', 'CNN', 'Hybrid']
-        fig, ax = plt.subplots(1,1,figsize = (10,4))
+        fig, ax = plt.subplots(1,1,figsize = (4,4), layout = 'constrained')
         
         for i, result in enumerate(model_results):
            # result.set_index('Date', inplace=True)
@@ -75,8 +75,17 @@ def plot_trading_results(model_results, baseline, index_fund):
 
 
 # to import from the src/ folder when running the notebook
-data = yf.Ticker('MSFT')
 
+data = yf.Ticker('MSFT')
+'''
+model_3_preds = pd.read_csv('notebooks/model_iii_predictions.csv')
+data_df = read_data('MSFT')
+data_df = normalise_data(data_df)
+print(model_3_preds)
+model_3_preds.set_index('Date', inplace=True)
+model_3_profit, a, b,c, d, e, f = simulate_trading(data_df[4222+2500:], pd.DataFrame(data = model_3_preds['Predictions'],index = data_df[4222+2500:].index))
+model_3_profit.to_csv('notebooks/model_iii_profit.csv')
+'''
 trading_results_set = []
 # get the baseline profit and sp500 profit to compare
 baseline_outcome, sp500 = get_baseline_and_index_results('MSFT', sp500_data)
@@ -86,12 +95,14 @@ y_dataframes_set = []
 
 
 model_results_data_files = [f'notebooks/model_{k}_predictions.csv' for k in [ 'i', 'ii', 'iii']]
-model_trading_data_files = [f'notebooks/model_{k}_profit.csv' for k in [ 'i', 'ii', 'ii']]
+model_trading_data_files = [f'notebooks/model_{k}_profit.csv' for k in [ 'i', 'ii']]
 print(model_results_data_files)
 print("heppp")
 for j, model_results in enumerate(model_results_data_files):
     if os.path.exists(model_results):
      y_dataframes_set.append(pd.read_csv(model_results))
+for j, model_results in enumerate(model_trading_data_files):
+    if os.path.exists(model_results):
      trading_results = pd.read_csv(model_trading_data_files[j])
     # trading_results.set_index('Date', inplace=True)
      trading_results_set.append(trading_results)
@@ -99,8 +110,7 @@ for j, model_results in enumerate(model_results_data_files):
 
 
 
-#generate the results figure (3 sets of results)    
-print(trading_results_set[0])
+
 
 present_model_results([y['Target'].to_numpy() for y in y_dataframes_set], [y['Probabilities'].to_numpy() for y in y_dataframes_set])
 
